@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyse - Outil MBS</title>
+    <link rel="icon" href="https://raw.githubusercontent.com/Student-broken/student-broken.github.io/refs/heads/main/favicon.ico" type="image/x-icon">
+    <!-- Font Awesome for icons (Updated & Reliable CDN Link) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            /* Animation & Transition */
+            --transition-duration: 0.35s;
+
+            /* Light Mode Variables */
+            --primary-color: #2980b9;
+            --secondary-color: #2c3e50;
+            --background-color: #f7f9fb;
+            --widget-background: #ffffff;
+            --text-color: #34495e;
+            --light-grey: #bdc3c7;
+            --footer-grey: #7f8c8d;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --shadow-header: 0 2px 4px rgba(0, 0, 0, 0.05);
+            --shadow-widget: 0 8px 15px rgba(0, 0, 0, 0.08);
+            --border-color: #e0e6eb;
+            --goal-success-bg: #eafaf1;
+            --goal-warning-bg: #fff9f0;
+            --goal-danger-bg: #fdf3f2;
+        }
+
+        /* DARK MODE VARIABLES */
+        [data-theme="dark"] {
+            --background-color: #121212;
+            --widget-background: #1e1e1e;
+            --text-color: #e0e0e0;
+            --secondary-color: #bbbbbb;
+            --light-grey: #757575;
+            --footer-grey: #a0a0a0;
+            --shadow-header: 0 2px 5px rgba(255, 255, 255, 0.1);
+            --shadow-widget: 0 5px 10px rgba(0, 0, 0, 0.3);
+            --border-color: #333333;
+            --goal-success-bg: #1a3e2a;
+            --goal-warning-bg: #4d381c;
+            --goal-danger-bg: #4f2323;
+
+            /* Specific element adjustments for dark mode */
+            .site-header { color: var(--text-color); }
+            .nav-arrow { color: var(--text-color); }
+            .widget-title { color: var(--text-color); }
+            .comp-widget, .calculator-container {
+                background-color: #282828;
+                border-color: var(--border-color);
+            }
+            .modal-content { background-color: var(--background-color); }
+            .modal-header { background-color: #2c3e50; } /* Keep header dark */
+            .goal-input input {
+                background-color: #282828;
+                border-color: var(--light-grey);
+                color: var(--text-color);
+            }
+        }
+
+        /* GLOBAL TRANSITIONS for smooth theme change */
+        body, .site-header-container, .sticky-tabs, .subject-widget, .modal-content, .tab-btn, .comp-widget, .calculator-container, input {
+            transition: background-color var(--transition-duration) ease, color var(--transition-duration) ease, border-color var(--transition-duration) ease, box-shadow var(--transition-duration) ease;
+        }
+        
+        /* SMOOTHER Page Load Animation Keyframes */
+        @keyframes fadeInSlideUp {
+            from { opacity: 0; transform: translateY(25px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Animation application for main elements */
+        .site-header-container, .sticky-tabs, .widget-grid, footer {
+            opacity: 0;
+            transform: translateY(25px);
+            animation: fadeInSlideUp 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+        .sticky-tabs { animation-delay: 0.1s; }
+        .widget-grid { animation-delay: 0.2s; }
+        footer { animation-delay: 0.4s; }
+
+        /* General Styles */
+        body {
+            margin: 0; font-family: 'Inter', sans-serif;
+            background-color: var(--background-color); color: var(--text-color);
+        }
+        .site-header-container {
+            background-color: var(--widget-background); box-shadow: var(--shadow-header);
+            border-bottom: 1px solid var(--border-color); padding: 15px 25px;
+            display: flex; align-items: center; position: relative; margin-bottom: 0; /* Margin removed for sticky tabs */
+        }
+        .header-left { flex: 1; display: flex; justify-content: flex-start; }
+        .header-center { flex: 2; text-align: center; }
+        .header-right { flex: 1; display: flex; justify-content: flex-end; }
+        .site-header {
+            padding: 0; margin: 0; color: var(--secondary-color);
+            font-size: 2.2em; font-weight: 700; font-family: 'Playfair Display', serif;
+            display: inline-block;
+        }
+        .nav-arrow { font-size: 2em; color: var(--secondary-color); text-decoration: none; transition: all 0.2s; }
+        .nav-arrow:hover { color: var(--primary-color); transform: scale(1.05); }
+
+        /* Dark Mode Toggle Button */
+        .icon-btn {
+            background: none; border: 2px solid var(--light-grey); color: var(--text-color);
+            width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; font-size: 1.1em;
+            transition: all 0.2s ease, background-color var(--transition-duration);
+        }
+        .icon-btn:hover {
+            border-color: var(--primary-color); color: var(--primary-color);
+            transform: scale(1.1);
+        }
+
+        .sticky-tabs {
+            position: sticky; top: 0; background-color: var(--background-color);
+            z-index: 100; padding: 15px 0; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;
+        }
+        .tab-btn {
+            padding: 10px 20px; border: 1px solid var(--light-grey); border-radius: 20px;
+            background-color: transparent; color: var(--text-color); font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .tab-btn.active { background-color: var(--primary-color); color: white; border-color: var(--primary-color); }
+        .widget-grid {
+            max-width: 1400px; margin: 30px auto; padding: 0 20px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 25px;
+        }
+        .subject-widget {
+            background-color: var(--widget-background); border-radius: 12px;
+            box-shadow: var(--shadow-widget); padding: 20px;
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+            display: flex; flex-direction: column;
+        }
+        .subject-widget:hover { transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.1); }
+        .widget-top-section { display: flex; justify-content: space-between; align-items: flex-start; gap: 15px; }
+        .widget-info { flex: 1; }
+        .widget-title { font-size: 1.2em; font-weight: 700; color: var(--secondary-color); margin: 0 0 10px 0; }
+        .widget-average { font-size: 2.5em; font-weight: 700; color: var(--primary-color); margin: 0; }
+        .widget-trend { display: flex; align-items: center; gap: 5px; font-weight: 600; font-size: 0.9em; margin-top: 5px; }
+        .widget-trend.up { color: var(--success-color); }
+        .widget-trend.down { color: var(--danger-color); }
+        .gauge-container { width: 120px; height: 70px; position: relative; }
+        .histogram-container { margin-top: 15px; height: 120px; }
+        
+        /* Modal Animations */
+        .modal-overlay {
+            position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px); z-index: 1000; display: flex;
+            justify-content: center; align-items: center; opacity: 0;
+            visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content {
+            background-color: var(--background-color); border-radius: 16px; width: 90%;
+            max-width: 800px; max-height: 90vh; overflow-y: auto;
+            transform: scale(0.9) translateY(-20px);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modal-overlay.active .modal-content { transform: scale(1) translateY(0); }
+
+        .modal-header { padding: 20px 25px; background-color: var(--secondary-color); color: white; border-radius: 16px 16px 0 0; }
+        .modal-title { font-family: 'Playfair Display', serif; font-size: 1.8em; margin: 0; }
+        .modal-body { padding: 25px; }
+        .competency-widgets { display: flex; gap: 15px; margin-bottom: 25px; flex-wrap: wrap; }
+        .comp-widget { flex: 1; min-width: 150px; background-color: var(--widget-background); border-radius: 8px; padding: 15px; text-align: center; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s; }
+        .comp-widget.active { border-color: var(--primary-color); box-shadow: 0 0 0 2px var(--primary-color); }
+        .calculator-container { background-color: var(--widget-background); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); }
+        .goal-input { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .goal-input input { width: 80px; padding: 8px; border-radius: 6px; border: 1px solid var(--light-grey); text-align: center; font-size: 1.1em; }
+        .goal-result { padding: 15px; border-radius: 6px; text-align: center; font-size: 1.1em; font-weight: 600; transition: background-color var(--transition-duration); }
+        .goal-result.success { background-color: var(--goal-success-bg); color: var(--success-color); }
+        .goal-result.warning { background-color: var(--goal-warning-bg); color: var(--warning-color); }
+        .goal-result.danger { background-color: var(--goal-danger-bg); color: var(--danger-color); }
+        .btn-save { padding: 8px 12px; border: none; background-color: var(--primary-color); color: white; border-radius: 6px; cursor: pointer; }
+        footer { text-align: center; padding: 25px; font-size: 0.9em; color: var(--footer-grey); border-top: 1px solid var(--border-color); margin-top: 40px; }
+   
+    
+    /* ----- ADD THIS CSS TO YOUR STYLESHEET ----- */
+
+/* Chart Toggle Button */
+.widget-chart-controls {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 5px; /* Space between button and chart */
+    height: 25px; /* Reserve space to prevent layout shift */
+}
+
+.chart-toggle-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--light-grey);
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8em;
+    transition: all 0.2s ease;
+}
+
+.chart-toggle-btn:hover {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* History Editor Modal Specific Styles */
+#history-editor-modal { /* Using the same overlay class */
+    z-index: 1100; /* Ensure it's above the details modal */
+}
+
+.history-editor-content {
+    background-color: var(--widget-background);
+    padding: 25px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-widget);
+}
+
+.history-editor-header h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6em;
+    margin-top: 0;
+    color: var(--primary-color);
+}
+
+.history-steps-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+}
+
+.step-btn {
+    padding: 10px 15px;
+    border: 1px solid var(--border-color);
+    background-color: transparent;
+    color: var(--text-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.step-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.history-steps-container .arrow {
+    font-size: 1.2em;
+    color: var(--light-grey);
+}
+
+.assignments-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 10px; /* for scrollbar */
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.assignment-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 6px;
+}
+
+.assignment-item:nth-child(odd) {
+    background-color: rgba(128, 128, 128, 0.05);
+}
+
+.assignment-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+}
+
+.assignment-item label {
+    flex-grow: 1;
+    cursor: pointer;
+}
+.assignment-item label small {
+    display: block;
+    color: var(--light-grey);
+    font-size: 0.8em;
+}
+
+.history-editor-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.btn-secondary {
+    padding: 10px 15px;
+    border: 1px solid var(--light-grey);
+    background-color: transparent;
+    color: var(--text-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn-primary {
+    padding: 10px 15px;
+    border: none;
+    background-color: var(--success-color);
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+}
+    
+    
+    </style>
+</head>
+<body>
+    <header class="site-header-container">
+        <div class="header-left"><a href="main.html" class="nav-arrow" title="Retour au tableau de bord">←</a></div>
+        <div class="header-center"><h1 class="site-header">Outil MBS</h1></div>
+        <div class="header-right">
+            <!-- Theme Toggle Button -->
+            <button id="theme-toggle" class="icon-btn" aria-label="Changer de thème (Mode Clair/Sombre)">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="sticky-tabs">
+        <button class="tab-btn active" data-etape="generale">Générale</button>
+        <button class="tab-btn" data-etape="etape1">Étape 1</button>
+        <button class="tab-btn" data-etape="etape2">Étape 2</button>
+        <button class="tab-btn" data-etape="etape3">Étape 3</button>
+    </div>
+
+    <main id="widget-grid" class="widget-grid">
+        <!-- Widgets will be populated by JavaScript -->
+    </main>
+    
+    <div id="details-modal" class="modal-overlay">
+        <div id="modal-content" class="modal-content">
+            <!-- Modal content will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <footer><p>Outil MBS - Moyenne, Bilan, Stratégie</p></footer>
+
+    <!-- Theme and animation control script -->
+    <script>
+        const themeToggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        const toggleIcon = themeToggle.querySelector('i');
+        const THEME_KEY = 'mbs-theme';
+
+        const updateTheme = (theme) => {
+            html.setAttribute('data-theme', theme);
+            localStorage.setItem(THEME_KEY, theme);
+            if (theme === 'dark') {
+                toggleIcon.classList.remove('fa-moon');
+                toggleIcon.classList.add('fa-sun');
+            } else {
+                toggleIcon.classList.remove('fa-sun');
+                toggleIcon.classList.add('fa-moon');
+            }
+        };
+
+        const storedTheme = localStorage.getItem(THEME_KEY);
+        const initialTheme = storedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        updateTheme(initialTheme);
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            updateTheme(newTheme);
+        });
+    </script>
+
+    <!-- Link to the external JavaScript file for page functionality -->
+    <script src="js/improve-functions.js"></script>
+</body>
+</html>
