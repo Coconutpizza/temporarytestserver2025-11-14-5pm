@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analyseur Dynamique V11 (Cibles Personnalisées)</title>
+    <title>Analyseur Dynamique V12 (Cibles Fix)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* [All the CSS from the previous file remains exactly the same] */
@@ -144,7 +144,7 @@
         .prob-medium { background-color: #FEF3C7; color: #92400E; }
         .prob-low { background-color: #FEE2E2; color: #991B1B; }
         
-        /* NEW: Custom Target Input */
+        /* Custom Target Input */
         .probability-table tfoot td {
             padding: 0.5rem;
             background-color: #f9fafb;
@@ -306,7 +306,7 @@
     <div class="main-container">
 
         <div class="side-panel lg:sticky lg:top-4">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Moteur Stochastique V11 (Fix)</h2>
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Moteur Stochastique V12 (Fix)</h2>
 
             <div class="bg-violet-100 p-4 rounded-lg mb-4 border-l-4 border-violet-600">
                 <p class="text-sm font-medium text-gray-700">Prédiction Globale Stochastique (Tendance MC)</p>
@@ -894,12 +894,11 @@ document.addEventListener('DOMContentLoaded', () => {
      * ===================================================================
      */
     function generateAndRenderInsights(analysis) {
+        // [This section is IDENTICAL to V9]
         const { burnoutRiskScore, aiModels, globalStdDev } = analysis;
         const container = document.getElementById('ai-insights-list');
         if (!container) return;
-
         let insights = [];
-        
         let riskLabel = "faible";
         let riskClass = "insight-good";
         if (burnoutRiskScore > 70) {
@@ -913,26 +912,21 @@ document.addEventListener('DOMContentLoaded', () => {
             text: `Mon diagnostic global est un **risque de burnout ${riskLabel} (${burnoutRiskScore.toFixed(0)}/100)**.`,
             type: riskClass
         });
-
         const goodModels = aiModels
             .filter(m => m.model.r2 > AI_R2_THRESHOLD) 
             .sort((a, b) => b.model.r2 - a.model.r2); 
-
         if (goodModels.length > 0) {
             insights.push({ 
                 text: `J'ai scanné ${aiModels.length} combinaisons et **trouvé ${goodModels.length} schéma(s) fiable(s)** dans votre performance :`,
                 type: 'insight-info'
             });
-
             goodModels.slice(0, 3).forEach(m => {
                 let text = '';
                 let riskClass = 'insight-good';
                 const avg = m.data.grades.reduce((a, b) => a + b, 0) / m.data.grades.length;
-                
                 const [category, type] = m.name.split(' (');
                 const modelType = type.replace(')', '');
                 const name = (category === 'Global') ? `${modelType}` : `${modelType} en ${category}`;
-
                 if (m.model.slope > 0.1) {
                     text = `**${name} (Moy: ${avg.toFixed(0)}%)**: Vous avez une **tendance positive claire**. (Confiance: ${(m.model.r2 * 100).toFixed(0)}%)`;
                 } else if (m.model.slope < -0.1) {
@@ -943,7 +937,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 insights.push({ text: text, type: `${m.type} ${riskClass}` });
             });
-
         } else {
             insights.push({ 
                 text: `Mon diagnostic principal est que votre performance est **erratique**. Je n'ai trouvé **aucun schéma fiable** (R² < ${(AI_R2_THRESHOLD * 100).toFixed(0)}%) sur les ${aiModels.length} combinaisons analysées.`,
@@ -954,7 +947,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 type: '' 
             });
         }
-
         container.innerHTML = insights.map(insight => {
             return `<li class="${insight.type || ''}">${insight.text}</li>`;
         }).join('');
@@ -967,6 +959,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // AI LOGIC: Linear Regression
     // ===================================================================
     function linearRegression(x_values, y_values) {
+        // [This section is IDENTICAL to V9]
         let x_sum = 0;
         let y_sum = 0;
         let xy_sum = 0;
@@ -974,7 +967,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let n = x_values.length;
         if (n === 0 || n !== y_values.length) return { slope: 0, r2: 0, intercept: 0 };
         if (n < 2) return { slope: 0, r2: 0, intercept: y_values[0] || 0 };
-
         for (let i = 0; i < n; i++) {
             const x = x_values[i];
             const y = y_values[i];
@@ -1003,6 +995,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // REAL PROBABILITY LOGIC: Standard Normal CDF
     // ===================================================================
     function standardNormalCDF(z) {
+        // [This section is IDENTICAL to V9]
         function erf(x) {
             const p = 0.3275911;
             const a1 = 0.254829592;
@@ -1023,6 +1016,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ROBUST GRADE PARSING LOGIC
     // ===================================================================
     function getNumericGrade(result) {
+        // [This section is IDENTICAL to V9]
         if (!result) return null;
         const trimmed = result.trim().toLowerCase();
         if (trimmed === 'absent' || trimmed === 'abs' || trimmed === '0' || trimmed === '0%') return 0;
@@ -1045,6 +1039,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function getUnits() {
+        // [This section is IDENTICAL to V9]
         const { niveau, unitesMode, customUnites } = mbsData.settings || {};
         if (unitesMode === 'sans') return new Proxy({}, { get: () => 1 });
         if (unitesMode === 'perso') return customUnites || {};
@@ -1059,18 +1054,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // UPGRADED: Extracts all data vectors for AI analysis
     // ===================================================================
     function extractAssignmentData(subject) {
+        // [This section is IDENTICAL to V9]
         let allGrades = [];
         let allPondérations = [];
         let allCompWeights = []; 
-
         subject.competencies.forEach((comp) => {
             const compWeightMatch = comp.name.match(/\((\d+)%\)/);
             const compWeight = compWeightMatch ? parseFloat(compWeightMatch[1]) : 0;
-
             comp.assignments.forEach(assign => {
                 const grade = getNumericGrade(assign.result);
                 const pondération = parseFloat(assign.pond || 0);
-
                 if (grade !== null && !isNaN(grade) && pondération > 0 && compWeight > 0) {
                     allGrades.push(grade);
                     allPondérations.push(pondération);
@@ -1083,55 +1076,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function calculateSubjectAverageAndStats(subject, etapeKey) {
+        // [This section is IDENTICAL to V9]
         let totalWeightedGrade = 0;
         let totalCompetencyWeight = 0;
         let competencyAverages = [];
-        
         const { allGrades, allPondérations, allCompWeights } = extractAssignmentData(subject);
-
         subject.competencies.forEach((comp, compIndex) => {
             const compWeightMatch = comp.name.match(/\((\d+)%\)/);
             const compWeight = compWeightMatch ? parseFloat(compWeightMatch[1]) : 0;
             if (compWeight === 0) return;
-
             let totalAssignmentGrade = 0;
             let totalAssignmentWeight = 0;
             let numAssignments = 0;
-
             comp.assignments.forEach(assign => {
                 const grade = getNumericGrade(assign.result);
                 let weight = parseFloat(assign.pond || 0);
-
                 if (grade !== null && !isNaN(grade) && !isNaN(weight) && weight > 0) {
                     totalAssignmentGrade += grade * weight;
                     totalAssignmentWeight += weight;
                     numAssignments++;
                 }
             });
-
             let compAvg = null;
             if (totalAssignmentWeight > 0) {
                 compAvg = totalAssignmentGrade / totalAssignmentWeight;
                 totalWeightedGrade += compAvg * (compWeight / 100);
                 totalCompetencyWeight += (compWeight / 100);
             }
-
             competencyAverages.push({ avg: compAvg, numAssignments });
         });
-
         const subjectAverage = totalCompetencyWeight > 0 ? (totalWeightedGrade / totalCompetencyWeight) : null;
         const overallConsistency = allGrades.length >= 2 ? calculateConsistencyScore(allGrades) : 100;
         const stdDev = allGrades.length >= 2 ? calculateStdDev(allGrades) : 0;
-        
         return { subjectAverage, allGrades, allPondérations, allCompWeights, overallConsistency, stdDev, competencyAverages };
     }
 
     function calculateConsistencyScore(grades) {
+        // [This section is IDENTICAL to V9]
         const stdDev = calculateStdDev(grades);
         return Math.max(0, 100 - (stdDev * 2));
     }
     
     function calculateStdDev(grades) {
+        // [This section is IDENTICAL to V9]
         if (grades.length < 2) return 0;
         const mean = grades.reduce((a, b) => a + b) / grades.length;
         const variance = grades.reduce((sum, grade) => sum + Math.pow(grade - mean, 2), 0) / (grades.length - 1); // Sample StdDev
@@ -1139,6 +1126,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function calculateWeightedFinalAvg(etape1Avg, etape2Avg, etape3Avg) {
+        // [This section is IDENTICAL to V9]
         let weightedSum = 0;
         let totalWeight = 0;
         if (etape1Avg !== null) { weightedSum += etape1Avg * TERM_WEIGHTS.etape1; totalWeight += TERM_WEIGHTS.etape1; }
@@ -1149,32 +1137,29 @@ document.addEventListener('DOMContentLoaded', () => {
     
     /**
      * ===================================================================
-     * NEW: Path Analysis Function (V10 - LOGIC FIX)
-     * This now correctly calculates the required average for E2 and E3.
+     * NEW: Path Analysis Function (V11 - Custom Target Support)
      * ===================================================================
      */
     function calculatePathAnalysis(targetEtapeKey, allTermAverages, predictedMean, predictedStdDev, customTargets = null) {
         const probabilityAnalysis = {};
+        // Use custom targets if provided, otherwise use the default list
         const targets = customTargets || [95, 92, 90, 88, 85, 80, 75, 70, 60];
         
         let currentKnownGlobalSum = 0;
         let knownWeight = 0;
         let remainingWeight = 0;
 
-        const totalWeight = TERM_WEIGHTS.etape1 + TERM_WEIGHTS.etape2 + TERM_WEIGHTS.etape3; // Should be 1.0
+        const totalWeight = TERM_WEIGHTS.etape1 + TERM_WEIGHTS.etape2 + TERM_WEIGHTS.etape3; 
 
         if (targetEtapeKey === 'etape2') {
-            // This roadmap calculates what you need in E2, assuming E3 performs at the projected mean
             if (allTermAverages.etape1 !== null) {
                 currentKnownGlobalSum = allTermAverages.etape1 * TERM_WEIGHTS.etape1;
                 knownWeight = TERM_WEIGHTS.etape1;
             }
-            // Add the *projected* E3 weight
             currentKnownGlobalSum += predictedMean * TERM_WEIGHTS.etape3;
             remainingWeight = TERM_WEIGHTS.etape2;
 
         } else { // 'etape3'
-            // This roadmap calculates what you need in E3, based on known E1 and E2
             if (allTermAverages.etape1 !== null) {
                 currentKnownGlobalSum += allTermAverages.etape1 * TERM_WEIGHTS.etape1;
                 knownWeight += TERM_WEIGHTS.etape1;
@@ -1186,7 +1171,6 @@ document.addEventListener('DOMContentLoaded', () => {
             remainingWeight = TERM_WEIGHTS.etape3;
         }
 
-        // If Etape 1 has no data, Etape 2 analysis is not possible yet.
         if (targetEtapeKey === 'etape2' && allTermAverages.etape1 === null) {
              remainingWeight = 0; 
         }
@@ -1199,11 +1183,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         targets.forEach(target => {
-            // (TargetGlobal * TotalWeight - KnownSum) / RemainingWeight
             const requiredAvg = (target * totalWeight - currentKnownGlobalSum) / remainingWeight;
-            
-            // The "probability" is the chance of you hitting this *required* average,
-            // based on your *projected* performance (mean) and volatility (stddev).
             const prob = calculateProbability(predictedMean, predictedStdDev, requiredAvg);
             probabilityAnalysis[target] = { requiredAvg: requiredAvg, prob: prob };
         });
@@ -1213,16 +1193,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // ===================================================================
-    // UPGRADED ANALYSIS FUNCTION (V10)
+    // UPGRADED ANALYSIS FUNCTION (V11)
     // ===================================================================
     function calculateAllAnalysis() {
+        // [This function is almost identical to V9/V8, but now adds
+        // predictedE3SMean and predictedE3SSigma to the final return object]
+        
         const units = getUnits();
         const niveau = mbsData.settings?.niveau;
         let allTermAverages = { etape1: null, etape2: null, etape3: null };
         let allSubjectAverages = {};
         let allSubjectStats = {}; 
         let allSubjectOverallStats = {}; 
-        
         let aiDataStore = {
             'Global': { grades: [], pondérations: [], compWeights: [], codes: [] }
         };
@@ -1234,17 +1216,13 @@ document.addEventListener('DOMContentLoaded', () => {
         KNOWN_ETAPE_KEYS.forEach(etape => {
             if (!mbsData[etape]) return;
             allSubjectAverages[etape] = {};
-
             mbsData[etape].forEach((subject) => {
                 const codePrefix = subject.code.substring(0, 3);
-                
                 const { subjectAverage, allGrades, allPondérations, allCompWeights, overallConsistency, stdDev, competencyAverages } = 
                     calculateSubjectAverageAndStats(subject, etape);
-
                 aiDataStore['Global'].grades.push(...allGrades);
                 aiDataStore['Global'].pondérations.push(...allPondérations); 
                 aiDataStore['Global'].compWeights.push(...allCompWeights);
-
                 for (const groupName in subjectGroups) {
                     if (subjectGroups[groupName].includes(codePrefix)) {
                         aiDataStore[groupName].grades.push(...allGrades);
@@ -1253,21 +1231,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         break; 
                     }
                 }
-                
                 allSubjectAverages[etape][codePrefix] = { name: subjectList[codePrefix] || subject.name, average: subjectAverage };
                 allSubjectStats[codePrefix] = allSubjectStats[codePrefix] || {};
                 allSubjectStats[codePrefix][etape] = { overallConsistency, stdDev, competencyAverages, allGrades, allPondérations, allCompWeights, numGrades: allGrades.length };
             });
         });
 
-        // 1.5 Calculate Overall Subject Stats (across all known terms)
+        // 1.5 Calculate Overall Subject Stats
         Object.keys(allSubjectStats).forEach(code => {
             let grades = [];
             let pondérations = [];
             let compWeights = [];
             let allConsistencies = [];
             let totalNumGrades = 0;
-
             KNOWN_ETAPE_KEYS.forEach(etape => {
                 if (allSubjectStats[code][etape]) {
                     grades.push(...allSubjectStats[code][etape].allGrades);
@@ -1277,15 +1253,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     totalNumGrades += allSubjectStats[code][etape].numGrades;
                 }
             });
-
             if (totalNumGrades > 0) {
                  aiDataStore[subjectList[code] || code] = { grades: grades, pondérations: pondérations, compWeights: compWeights, codes: [code] };
             }
-
             const overallStdDev = calculateStdDev(grades);
             const overallConsistency = allConsistencies.length > 0 ? allConsistencies.reduce((a, b) => a + b) / allConsistencies.length : 100;
             const trend = linearRegression(grades.map((g, i) => i), grades); 
-            
             allSubjectOverallStats[code] = { allGrades: grades, allPondérations: pondérations, allCompWeights: compWeights, stdDev: overallStdDev, overallConsistency, numGrades: totalNumGrades, trend: trend };
         });
         
@@ -1314,12 +1287,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // 3. Global Statistics & AI DISCOVERY ENGINE
         const globalStdDev = calculateStdDev(aiDataStore['Global'].grades);
         const globalConsistencyScore = calculateConsistencyScore(aiDataStore['Global'].grades);
-        
         let aiModels = [];
         for (const categoryName in aiDataStore) {
             const data = aiDataStore[categoryName];
             if (data.grades.length < 5) continue; 
-
             aiModels.push({
                 name: `${categoryName} (Tendance)`,
                 type: 'insight-trend',
@@ -1354,7 +1325,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 6. Monte Carlo Predictions
         const { predictions, predictedE3SMean, predictedE3SSigma } = runMonteCarloSimulation(globalAverageKnown, allTermAverages, allSubjectAverages, subjectTrends, allSubjectOverallStats, units, globalStdDev, burnoutRiskScore);
 
-        // 7. NEW: Path Analysis
+        // 7. Path Analysis
         const probabilityAnalysisE2 = calculatePathAnalysis('etape2', allTermAverages, predictedE3SMean, predictedE3SSigma);
         const probabilityAnalysisE3 = calculatePathAnalysis('etape3', allTermAverages, predictedE3SMean, predictedE3SSigma);
 
@@ -1370,10 +1341,10 @@ document.addEventListener('DOMContentLoaded', () => {
             subjectTrends,
             burnoutRiskScore,
             predictions,
-            probabilityAnalysisE2, // NEW
-            probabilityAnalysisE3, // NEW
-            predictedE3SMean, // NEW: Pass this for custom calcs
-            predictedE3SSigma // NEW: Pass this for custom calcs
+            probabilityAnalysisE2,
+            probabilityAnalysisE3,
+            predictedE3SMean, // <-- FIX: This is now correctly returned
+            predictedE3SSigma // <-- FIX: This is now correctly returned
         };
     }
     
@@ -1381,6 +1352,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Transparent Burnout Risk Score
     // ===================================================================
     function calculateBurnoutRisk(niveau, globalStdDev, allSubjectOverallStats, units, globalTrend) {
+        // [This section is IDENTICAL to V9]
         if (!niveau) return 0;
         const absenceRate = parseFloat(mbsData.settings.absenceRate || 5) / 100; 
         let totalUnits = Object.values(units).reduce((sum, u) => sum + (u || 0), 0);
@@ -1403,13 +1375,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const globalPred = { p5: null, p25: null, p50: null, p75: null, p95: null };
         const subjectPreds = {};
-        
         const avg1 = termAverages.etape1;
         const avg2 = termAverages.etape2;
-
         let currentKnownGlobalSum = 0;
         let totalKnownWeight = 0;
-        
         if (avg1 !== null) {
             currentKnownGlobalSum += avg1 * TERM_WEIGHTS.etape1;
             totalKnownWeight += TERM_WEIGHTS.etape1;
@@ -1418,30 +1387,23 @@ document.addEventListener('DOMContentLoaded', () => {
             currentKnownGlobalSum += avg2 * TERM_WEIGHTS.etape2;
             totalKnownWeight += TERM_WEIGHTS.etape2;
         }
-        
         const totalWeight = TERM_WEIGHTS.etape1 + TERM_WEIGHTS.etape2 + TERM_WEIGHTS.etape3;
         const remainingWeight = totalWeight - totalKnownWeight;
-        
         let predictedE3SMean = globalAverageKnown || 75;
         let predictedE3SSigma = globalStdDev || 5;
-
         if (remainingWeight <= 0) {
              globalPred.p5 = globalPred.p25 = globalPred.p50 = globalPred.p75 = globalPred.p95 = globalAverageKnown;
              globalPred.trend = globalAverageKnown;
              return { predictions: { global: globalPred, subjects: subjectPreds }, predictedE3SMean, predictedE3SSigma };
         }
-        
         const relevantSubjects = Object.keys(subjectOverallStats).filter(code => units[code] && subjectOverallStats[code].numGrades > 0);
-        
         if (relevantSubjects.length === 0) {
              return { predictions: { global: globalPred, subjects: subjectPreds }, predictedE3SMean, predictedE3SSigma };
         }
-        
         let sMeanWeightedSum = 0;
         let sMeanUnitSum = 0;
         let sSigmaSquaredWeightedSum = 0; 
         let sSigmaUnitSum = 0; 
-
         relevantSubjects.forEach(code => {
             const subjStats = subjectOverallStats[code];
             const unit = units[code] || 2;
@@ -1478,11 +1440,9 @@ document.addEventListener('DOMContentLoaded', () => {
             sSigmaSquaredWeightedSum += Math.pow(fsp, 2) * unit; 
             sSigmaUnitSum += unit;
         });
-        
         predictedE3SMean = sMeanUnitSum > 0 ? sMeanWeightedSum / sMeanUnitSum : globalAverageKnown || 75;
         const predictedE3SVariance = sSigmaUnitSum > 0 ? sSigmaSquaredWeightedSum / sSigmaUnitSum : Math.pow(globalStdDev, 2) || 25;
         predictedE3SSigma = Math.sqrt(predictedE3SVariance);
-        
         let finalGlobalGrades = [];
         for (let i = 0; i < NUM_MONTE_CARLO_RUNS; i++) {
             const u1 = Math.random();
@@ -1491,7 +1451,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let predictedE3AvgGlobal = Math.min(100, Math.max(0, predictedE3SMean + z * predictedE3SSigma));
             const finalGlobalGrade = (currentKnownGlobalSum + predictedE3AvgGlobal * remainingWeight) / totalWeight;
             finalGlobalGrades.push(finalGlobalGrade);
-            
             if (i === 0) {
                  relevantSubjects.forEach(code => {
                     const subjPred = subjectPreds[code];
@@ -1503,7 +1462,6 @@ document.addEventListener('DOMContentLoaded', () => {
                  });
             }
         }
-
         finalGlobalGrades.sort((a, b) => a - b);
         globalPred.p5 = finalGlobalGrades[Math.floor(NUM_MONTE_CARLO_RUNS * 0.05)] || 0;
         globalPred.p25 = finalGlobalGrades[Math.floor(NUM_MONTE_CARLO_RUNS * 0.25)] || 0;
@@ -1573,13 +1531,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // NEW: Event listeners for custom target inputs
-        document.getElementById('custom-target-e2-input')?.addEventListener('change', handleCustomTargetChange);
-        document.getElementById('custom-target-e3-input')?.addEventListener('change', handleCustomTargetChange);
+        // UPDATED: Now uses 'input' for live updates
+        document.getElementById('custom-target-e2-input')?.addEventListener('input', handleCustomTargetChange);
+        document.getElementById('custom-target-e3-input')?.addEventListener('input', handleCustomTargetChange);
     }
     
     /**
      * ===================================================================
-     * NEW: Custom Target Handler
+     * NEW: Custom Target Handler (V11)
      * ===================================================================
      */
     function handleCustomTargetChange(event) {
@@ -1599,13 +1558,14 @@ document.addEventListener('DOMContentLoaded', () => {
             return; 
         }
 
+        // This is why we fixed cachedAnalysis
         const { allTermAverages, predictedE3SMean, predictedE3SSigma } = cachedAnalysis;
         
         // Rerun the path analysis for just this one target
         const results = calculatePathAnalysis(etapeKey, allTermAverages, predictedE3SMean, predictedE3SSigma, [targetValue]);
         const data = results[targetValue];
         
-        if (!data) return; // Should not happen
+        if (!data) return; 
 
         const { requiredAvg, prob } = data;
 
@@ -1630,7 +1590,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     
     function populateUnitesModal() {
-        // [This section is IDENTICAL to V8]
+        // [This section is IDENTICAL to V9]
         const unitesListEl = document.getElementById('unites-list');
         if (!unitesListEl) return;
         unitesListEl.innerHTML = '';
