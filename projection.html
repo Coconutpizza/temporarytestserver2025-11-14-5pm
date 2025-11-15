@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analyseur Dynamique V6 (IA Multi-Vecteur)</title>
+    <title>Analyseur Dynamique V7 (IA Découverte)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* [All the CSS from the previous file remains exactly the same] */
@@ -243,7 +243,10 @@
          .ai-insight-box li.insight-focus::before {
             content: '🎯';
         }
-
+         /* NEW */
+         .ai-insight-box li.insight-priority::before {
+            content: '🧠';
+        }
     </style>
 </head>
 <body>
@@ -251,7 +254,7 @@
     <div class="main-container">
 
         <div class="side-panel lg:sticky lg:top-4">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Moteur Stochastique V6 (IA-X)</h2>
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Moteur Stochastique V7 (IA-D)</h2>
 
             <div class="bg-violet-100 p-4 rounded-lg mb-4 border-l-4 border-violet-600">
                 <p class="text-sm font-medium text-gray-700">Prédiction Globale Stochastique (Tendance MC)</p>
@@ -276,8 +279,8 @@
                 </div>
 
                 <div class="ai-insight-box" id="ai-insight-container">
-                    <h4><span>🧠</span> Analyse de Performance (IA)</h4>
-                    <p class="text-xs text-gray-500 -mt-2 mb-3">Rapport généré par les modèles de régression client.</p>
+                    <h4><span>🔎</span> Moteur de Découverte (IA)</h4>
+                    <p class="text-xs text-gray-500 -mt-2 mb-3">L'IA recherche les corrélations fiables (R² > 0.20) dans vos données.</p>
                     <ul id="ai-insights-list">
                         </ul>
                 </div>
@@ -413,10 +416,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let cachedAnalysis = null;
     const NUM_MONTE_CARLO_RUNS = 100000; 
     const KNOWN_ETAPE_KEYS = ['etape1', 'etape2']; 
+    const AI_R2_THRESHOLD = 0.20; // NEW: The "Good R^2 Score" threshold
 
     // --- INITIALIZATION ---
     function init() {
-        // Use try...catch for robust JSON parsing
         try {
             mbsData = JSON.parse(localStorage.getItem('mbsData')) || { 
                 valid: false, nom: 'Étudiant', settings: { niveau: 'sec5', unitesMode: 'defaut', absenceRate: '5' } 
@@ -485,6 +488,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderMismatchAnalysis(analysis);
     }
 
+    // ... [All other render functions like renderTermTables, renderSubjectTable, renderSubjectAnalysis, renderMismatchAnalysis, renderSidePanel, renderDeepAnalysis, renderMonteCarlo are IDENTICAL to V6] ...
+    
     function renderTermTables() {
         ['etape1', 'etape2', 'etape3'].forEach(key => {
             const container = document.getElementById(key);
@@ -494,23 +499,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTermData(termData, container, etapeKey, analysis) {
         if (!container) return; 
-
         const allSubjectsInTerm = Object.keys(analysis.subjectStats).filter(code => analysis.subjectStats[code]?.[etapeKey]);
-
         if (allSubjectsInTerm.length === 0) {
             container.innerHTML = `<p class="no-data text-gray-500">Aucune matière avec données dans cette étape.</p>`;
             return;
         }
-
         container.innerHTML = '';
         allSubjectsInTerm.forEach(codePrefix => {
             const subject = mbsData[etapeKey].find(s => s.code.startsWith(codePrefix));
             const subjStats = analysis.subjectStats[codePrefix]?.[etapeKey];
             const subjPrediction = analysis.predictions.subjects[codePrefix];
-
             if (subject && subjStats) {
                 container.appendChild(renderSubjectTable(subject, etapeKey, subjStats, analysis));
-                // Only render analysis badges if subject prediction data exists
                 if (subjPrediction) {
                     container.appendChild(renderSubjectAnalysis(codePrefix, etapeKey, analysis));
                 }
@@ -523,10 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
         table.className = 'subject-table';
         const codePrefix = subject.code.substring(0, 3);
         const subjectName = subjectList[codePrefix] || subject.name;
-        
-        // Count steps taken
         const numAssignments = subjStats.allGrades.length;
-        
         table.innerHTML = `
             <thead>
                 <tr><th colspan="3">${codePrefix} - ${subjectName}</th></tr>
@@ -538,10 +535,8 @@ document.addEventListener('DOMContentLoaded', () => {
             </thead>
             <tbody></tbody>`;
         const tbody = table.querySelector('tbody');
-
         subjStats.competencyAverages.forEach((comp, compIndex) => {
             const compAvg = comp.avg;
-
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${subject.competencies[compIndex].name}</td>
@@ -550,8 +545,6 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             if (tbody) tbody.appendChild(row);
         });
-        
-        // Summary Row
         const summaryRow = document.createElement('tr');
         summaryRow.className = 'bg-gray-100 font-semibold';
         summaryRow.innerHTML = `
@@ -560,38 +553,29 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${numAssignments}</td>
         `;
         if (tbody) tbody.appendChild(summaryRow);
-
         return table;
     }
 
     function renderSubjectAnalysis(subjectCode, etapeKey, analysis) {
         const analysisDiv = document.createElement('div');
         analysisDiv.className = 'subject-analysis';
-        
         const subjAvg = analysis.subjectAverages[etapeKey]?.[subjectCode]?.average;
         const subjOverallStats = analysis.subjectOverallStats[subjectCode];
-        const trend = subjOverallStats?.trend; // Get trend from overall stats
+        const trend = subjOverallStats?.trend;
         const prediction = analysis.predictions.subjects[subjectCode];
-
         if (subjAvg === null || subjAvg === undefined || !prediction) {
             analysisDiv.innerHTML = `<p class="text-sm text-gray-500">Aucune donnée pour l'analyse de ${subjectList[subjectCode]}.</p>`;
             return analysisDiv;
         }
-
-        // 1. Overall Consistency Badge
         let overallConsistency = subjOverallStats?.overallConsistency || 0;
         let consistencyBadge = { label: 'Volatilité Max', class: 'badge-red', icon: '❌' };
         if (overallConsistency >= 90) consistencyBadge = { label: 'Très Stable', class: 'badge-green', icon: '✅' };
         else if (overallConsistency >= 70) consistencyBadge = { label: 'Stable', class: 'badge-yellow', icon: '⚠️' };
-        
-        // 2. Volatility (StdDev) Badge (Using FSP)
         const fsp = prediction.fsp;
         let volatilityBadge = { label: `StdDev: ${fsp.toFixed(1)}`, class: 'badge-violet', icon: '♼' };
         if (fsp > 10) volatilityBadge.class = 'badge-red';
         else if (fsp > 5) volatilityBadge.class = 'badge-yellow';
         else volatilityBadge.class = 'badge-green';
-        
-        // 3. Trend Badge (from Linear Regression)
         let trendBadge = { label: 'N/A', class: 'badge-violet', icon: ' ' };
         if (trend) {
             const slope = trend.slope;
@@ -599,21 +583,15 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (slope < -1) trendBadge = { label: `Baisse Importante (${slope.toFixed(1)}%)`, class: 'badge-red', icon: '⬇️' };
             else trendBadge = { label: 'Stable', class: 'badge-yellow', icon: '↔️' };
         }
-
-        // 4. MPP Badge (Redefined as "Projected Change Ratio")
         const mpp = prediction.mpp;
         let mppBadge = { label: `Ratio: x${mpp.toFixed(2)}`, class: 'badge-blue', icon: '⚙️' };
         if (mpp > 1.02) mppBadge.class = 'badge-green';
         else if (mpp < 0.98) mppBadge.class = 'badge-red';
         else mppBadge.class = 'badge-yellow';
-
-        // 5. ND - Niveau de Difficulté
         const nd = prediction.nd;
         let ndBadge = { label: `ND: ${nd.toFixed(0)}`, class: 'badge-red', icon: '⚡' };
         if (nd <= 30) ndBadge = { label: `ND: ${nd.toFixed(0)}% (Faible)`, class: 'badge-green', icon: '✨' };
         else if (nd <= 60) ndBadge = { label: `ND: ${nd.toFixed(0)}% (Modéré)`, class: 'badge-yellow', icon: '💪' };
-
-
         analysisDiv.innerHTML = `
             <div class="flex items-center mb-2 flex-wrap gap-2">
                 <span class="text-lg font-semibold text-gray-800 mr-4">${subjectList[subjectCode]}</span>
@@ -626,27 +604,22 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <p class="text-sm text-gray-700 mt-2">MPP = Ratio de Tendance (Prédiction / Moyenne Actuelle). ND = Niveau de Difficulté (distance à 100% ajustée par la volatilité).</p>
         `;
-
         return analysisDiv;
     }
 
     function renderMismatchAnalysis(analysis) {
         const container = document.getElementById('mismatch-analysis');
         if (!container) return;
-
         let mismatchHtml = '';
         const sortedSubjects = Object.entries(analysis.predictions.subjects).sort(([, a], [, b]) => b.mismatchScore - a.mismatchScore);
-
         sortedSubjects.forEach(([code, subjPred]) => {
             const subjName = subjectList[code] || code;
             const consistency = subjPred.consistency;
             const fsp = subjPred.fsp;
             const nd = subjPred.nd;
             const mismatch = subjPred.mismatchScore; 
-            
             let color = 'border-blue-500';
             let summary = 'Équilibre correct. Faible StdDev et bonne consistance.';
-
             if (mismatch > 40) {
                 color = 'border-red-500';
                 summary = '❌ **Volatilité Critique**. La performance est très imprévisible.';
@@ -657,7 +630,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 color = 'border-green-500';
                 summary = '✅ **Excellent Alignement**. Faible volatilité et haute consistance. Stabilité assurée.';
             }
-
             mismatchHtml += `
                 <div class="p-3 rounded-lg border-l-4 ${color} bg-white shadow-sm">
                     <div class="flex justify-between items-center text-gray-800">
@@ -669,24 +641,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         });
-
         container.innerHTML = mismatchHtml;
     }
 
-
     function renderSidePanel(analysis) {
         const formatAvg = (avg) => avg !== null ? `<span class="grade-percentage">${avg.toFixed(2)}%</span>` : '--';
-        
-        // Prediction (MC Trend) in the sidebar
         const mcTrend = analysis.predictions.global?.trend;
         document.getElementById('moyenne-prediction').innerHTML = formatAvg(mcTrend);
-        
         document.getElementById('active-etape-name').textContent = activeTab.replace('etape', '');
-        
         const subjectListEl = document.getElementById('subject-averages-list');
         subjectListEl.innerHTML = '';
         const activeTermSubjects = analysis.subjectAverages[activeTab];
-        
         if (activeTermSubjects && Object.keys(activeTermSubjects).length > 0) {
             const listItems = Object.entries(activeTermSubjects)
                 .filter(([code, subj]) => subj.average !== null)
@@ -694,7 +659,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `<li class="flex justify-between"><span>${subj.name}</span><strong>${formatAvg(subj.average)}</strong></li>`;
                 })
                 .join('');
-            
             subjectListEl.innerHTML = listItems || '<li class="no-data text-gray-500">Aucune moyenne calculée pour cette étape</li>';
         } else {
             subjectListEl.innerHTML = '<li class="no-data text-gray-500">Aucune matière pour cette étape</li>';
@@ -703,8 +667,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderDeepAnalysis(analysis) {
         const { globalConsistencyScore, burnoutRiskScore, globalTrend } = analysis;
-        
-        // 1. Consistency
         const consistencyEl = document.getElementById('consistency-score');
         if (consistencyEl) {
             consistencyEl.className = 'score-card';
@@ -713,8 +675,6 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (globalConsistencyScore < 90) consistencyEl.classList.add('card-violet');
             else consistencyEl.classList.add('card-green');
         }
-
-        // 2. Burnout Risk (High score = high risk)
         const riskEl = document.getElementById('burnout-risk-score');
         if (riskEl) {
             riskEl.className = 'score-card';
@@ -723,12 +683,9 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (burnoutRiskScore > 40) riskEl.classList.add('card-yellow');
             else riskEl.classList.add('card-green');
         }
-        
-        // 3. Dynamic Fatigue Factor (DFF) - REDEFINED as Global Trend
         const dffEl = document.getElementById('dff-score');
         if (dffEl) {
             dffEl.className = 'score-card';
-            // Show trend as a change per 10 assignments
             const score = (globalTrend.slope * 10).toFixed(1);
             dffEl.querySelector('strong').textContent = score + "%";
             dffEl.querySelector('strong').className = score < -1 ? 'text-xl text-red-600' : (score > 1 ? 'text-xl text-green-600' : 'text-xl text-yellow-600');
@@ -736,76 +693,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    /**
-     * UPGRADED: AI Insight Generator (V2)
-     * This is a rule-based engine to provide simple, actionable advice.
-     */
-    function generateAndRenderInsights(analysis) {
-        const { burnoutRiskScore, globalStdDev, globalTrend, globalPondérationTrend } = analysis;
-        const container = document.getElementById('ai-insights-list');
-        if (!container) return;
-
-        let insights = [];
-        
-        // --- Conversational Intro ---
-        let intro;
-        if (burnoutRiskScore > 75) {
-            intro = `J'ai analysé vos données et je vois plusieurs signaux de risque élevé (${burnoutRiskScore.toFixed(0)}/100). C'est probablement dû à une forte volatilité ou à une tendance négative.`;
-        } else if (burnoutRiskScore > 50) {
-            intro = `Votre profil montre un risque modéré (${burnoutRiskScore.toFixed(0)}/100). La situation est gérable, mais certains points sont à surveiller.`;
-        } else {
-            intro = { text: `Excellent ! Votre profil de risque est faible (${burnoutRiskScore.toFixed(0)}/100). Vous montrez un bon équilibre entre performance et stabilité.`, type: 'insight-good' };
-        }
-        insights.push(intro);
-
-        // --- AI Model 1: Time Trend Analysis ---
-        if (globalTrend.r2 < 0.1) {
-             insights.push({ text: `Tendance (Temps): Votre performance est erratique (Confiance R²: ${globalTrend.r2.toFixed(2)}), donc je ne peux pas établir de tendance temporelle claire.`, type: 'insight-trend' });
-        } else if (globalTrend.slope < -1) {
-            insights.push({ text: `Tendance (Temps): Vos notes sont sur une pente descendante de **${globalTrend.slope.toFixed(1)}%** par devoir. C'est un point critique à adresser.`, type: 'insight-trend' });
-        } else if (globalTrend.slope > 1) {
-             insights.push({ text: `Tendance (Temps): Vous êtes sur une excellente lancée, avec une progression de **+${globalTrend.slope.toFixed(1)}%** par devoir !`, type: 'insight-good insight-trend' });
-        } else {
-             insights.push({ text: `Tendance (Temps): Votre performance est stable dans le temps.`, type: 'insight-info insight-trend' });
-        }
-
-        // --- AI Model 2: Pondération (Focus) Trend Analysis ---
-        if (globalPondérationTrend.r2 < 0.1) {
-             insights.push({ text: `Focus (Pondération): Je n'ai pas pu trouver de lien clair entre la pondération des travaux et vos notes (Confiance R²: ${globalPondérationTrend.r2.toFixed(2)}).`, type: 'insight-focus' });
-        } else if (globalPondérationTrend.slope > 0.1) {
-             insights.push({ text: `Focus (Pondération): Vous performez mieux sur les travaux importants. Ma régression montre une **hausse de +${globalPondérationTrend.slope.toFixed(1)}%** pour chaque tranche de 10% de pondération.`, type: 'insight-good insight-focus' });
-        } else if (globalPondérationTrend.slope < -0.1) {
-             insights.push({ text: `Focus (Pondération): Vous semblez sous-performer sur les travaux à enjeu. J'observe une **baisse de ${globalPondérationTrend.slope.toFixed(1)}%** pour chaque tranche de 10% de pondération.`, type: 'insight-focus' });
-        } else {
-             insights.push({ text: `Focus (Pondération): Votre performance est constante, peu importe l'enjeu du devoir.`, type: 'insight-info insight-focus' });
-        }
-        
-        // --- Final Summary/Advice ---
-        if (globalStdDev > 15) {
-            insights.push(`Volatilité Critique (StdDev: ${globalStdDev.toFixed(1)}). Vos notes varient énormément, rendant les prédictions très incertaines. La priorité #1 est la constance.`);
-        } else if (globalStdDev > 10) {
-            insights.push(`Volatilité Élevée (StdDev: ${globalStdDev.toFixed(1)}). Visez plus de constance. Vos "mauvaises" notes pèsent lourd sur le B-Risk.`);
-        }
-
-        // Render
-        container.innerHTML = insights.map(insight => {
-            if (typeof insight === 'string') {
-                return `<li>${insight}</li>`;
-            }
-            return `<li class="${insight.type || ''}">${insight.text}</li>`;
-        }).join('');
-    }
-
-
     function renderMonteCarlo(analysis) {
         const { predictions } = analysis;
         const globalPredEl = document.getElementById('global-predictions');
         const probTableEl = document.getElementById('probability-table-body');
         const subjPredEl = document.getElementById('subject-predictions-list');
-        
         if (!globalPredEl || !probTableEl || !subjPredEl) return;
-
-        // --- 1. Global Predictions (Confidence Intervals) ---
         const predictionScenarios = [
             { name: "1. Tendance Pessimiste (P5)", key: 'p5', desc: '95% de chance d\'obtenir au moins ce score. Marge de sécurité.', class: 'card-red', effort: 'Modéré/Ciblé' },
             { name: "2. Quartile Inférieur (P25)", key: 'p25', desc: 'Limite basse du 25% des simulations.', class: 'card-yellow', effort: 'Modéré/Soutenu' },
@@ -813,12 +706,10 @@ document.addEventListener('DOMContentLoaded', () => {
             { name: "4. Quartile Supérieur (P75)", key: 'p75', desc: 'Limite haute du 25% des simulations. Nécessite un effort SOUTENU.', class: 'card-violet', effort: 'Soutenu' },
             { name: "5. Tendance Optimiste (P95)", key: 'p95', desc: '5% de chance d\'être meilleur que ce score. Nécessite un effort INTÉGRAL/MAXIMAL.', class: 'card-green', effort: 'Maximal' },
         ];
-        
         globalPredEl.innerHTML = predictionScenarios.map(scenario => {
             const value = predictions.global?.[scenario.key];
             const display = value !== null ? (value > 100 ? '>100%' : `${value.toFixed(2)}%`) : '--';
             const colorClass = scenario.class;
-            
             return `
                 <div class="prediction-card ${colorClass}">
                     <p class="font-bold text-gray-700">${scenario.name}</p>
@@ -830,25 +721,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         }).join('');
-
-
-        // --- 2. Probability Analysis & Required Average E3 ---
         const targets = [95, 92, 90, 88, 85, 80, 75, 70, 60];
         probTableEl.innerHTML = targets.map(target => {
             const { requiredAvg, prob } = predictions.probabilityAnalysis[target];
-            
             let probClass = 'prob-low';
             let effort = 'Effort Extrême (Statistiquement Improbable)';
-
             if (prob >= 80) { probClass = 'prob-high'; effort = 'Maintenir Consistance (Très Faisable)'; }
             else if (prob >= 50) { probClass = 'prob-medium'; effort = 'Effort Modéré/Ciblé (Faisable)'; }
             else if (prob >= 20) { probClass = 'prob-low'; effort = 'Effort Intégral (Difficile)'; }
             else if (prob < 5) { probClass = 'prob-low'; effort = 'Statistiquement Très Improbable'; }
-
             let requiredAvgDisplay = requiredAvg !== null ? (requiredAvg > 100 ? 'IMPOSSIBLE (100+)' : `${requiredAvg.toFixed(2)}%`) : '--';
             if (requiredAvg !== null && requiredAvg < 60) requiredAvgDisplay = `<span class="text-green-600">FAIBLE (${requiredAvg.toFixed(2)}%)</span>`;
             else if (requiredAvg !== null && requiredAvg > 100) requiredAvgDisplay = `<span class="text-red-600">IMPOSSIBLE (100+%)</span>`;
-            
             return `
                 <tr class="${probClass}">
                     <td>${target}%</td>
@@ -858,17 +742,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </tr>
             `;
         }).join('');
-        
-        // --- 3. Subject Predictions ---
         const sortedSubjects = Object.entries(predictions.subjects).sort(([codeA], [codeB]) => {
             return (subjectList[codeA] || codeA).localeCompare(subjectList[codeB] || codeB);
         });
-
         subjPredEl.innerHTML = sortedSubjects.map(([code, subjPred]) => {
             const prediction = subjPred.predictionFinal;
-            
             const cardClass = prediction >= 90 ? 'card-green' : (prediction >= 80 ? 'card-violet' : 'card-red');
-
             return `
                 <div class="prediction-card ${cardClass}">
                     <div class="flex justify-between items-center">
@@ -884,17 +763,93 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
 
+
+    /**
+     * ===================================================================
+     * NEW: AI DISCOVERY ENGINE (V7)
+     * Replaces the old insight generator with a dynamic discovery model.
+     * ===================================================================
+     */
+    function generateAndRenderInsights(analysis) {
+        const { burnoutRiskScore, globalStdDev, globalTrend, globalPondérationTrend, globalCompWeightTrend } = analysis;
+        const container = document.getElementById('ai-insights-list');
+        if (!container) return;
+
+        let insights = [];
+        
+        // --- 1. The Headline (B-Risk) ---
+        let riskLabel = "faible";
+        let riskClass = "insight-good";
+        if (burnoutRiskScore > 70) {
+            riskLabel = "Élevé";
+            riskClass = ""; // Default (warning)
+        } else if (burnoutRiskScore > 45) {
+            riskLabel = "Modéré";
+            riskClass = "insight-info";
+        }
+        insights.push({ 
+            text: `Mon diagnostic global est un **risque de burnout ${riskLabel} (${burnoutRiskScore.toFixed(0)}/100)**. Voici les schémas que j'ai trouvés :`,
+            type: riskClass
+        });
+
+        // --- 2. The "AI Discovery" Engine ---
+        // Create an array of all our AI models
+        const models = [
+            { name: "Tendance (Temps)", model: globalTrend, type: 'insight-trend', prefix: '📈' },
+            { name: "Focus (Pondération)", model: globalPondérationTrend, type: 'insight-focus', prefix: '🎯' },
+            { name: "Priorité (Compétence)", model: globalCompWeightTrend, type: 'insight-priority', prefix: '🧠' }
+        ];
+
+        // Filter for models with "good" R^2 score
+        const goodModels = models
+            .filter(m => m.model.r2 > AI_R2_THRESHOLD) // Use the global threshold
+            .sort((a, b) => b.model.r2 - a.model.r2); // Sort by strongest correlation
+
+        if (goodModels.length > 0) {
+            // --- PROFILE: TREND-BASED ---
+            insights.push({ 
+                text: `J'ai analysé vos données et **trouvé ${goodModels.length} schéma(s) fiable(s)** (R² > ${(AI_R2_THRESHOLD * 100).toFixed(0)}%) dans votre performance :`,
+                type: 'insight-info'
+            });
+
+            goodModels.forEach(m => {
+                let text = '';
+                let riskClass = 'insight-good';
+                if (m.model.slope > 0.1) {
+                    text = `**${m.name}**: Vous avez une **tendance positive claire**. (Confiance: ${(m.model.r2 * 100).toFixed(0)}%)`;
+                } else if (m.model.slope < -0.1) {
+                    text = `**${m.name}**: Vous avez une **tendance négative** qui pèse sur vos notes. (Confiance: ${(m.model.r2 * 100).toFixed(0)}%)`;
+                    riskClass = ''; // warning
+                } else {
+                    text = `**${m.name}**: Votre performance est **stable et constante** dans ce domaine. (Confiance: ${(m.model.r2 * 100).toFixed(0)}%)`;
+                }
+                insights.push({ text: text, type: `${m.type} ${riskClass}` });
+            });
+
+        } else {
+            // --- PROFILE: ERRATIC ---
+            insights.push({ 
+                text: `Mon diagnostic principal est que votre performance est **erratique**. Je n'ai trouvé **aucun schéma fiable** (R² < ${(AI_R2_THRESHOLD * 100).toFixed(0)}%) dans vos données (Temps, Focus, ou Priorité).`,
+                type: 'insight-info'
+            });
+            insights.push({
+                text: `Cette imprévisibilité est le principal facteur de votre B-Risk. Votre Volatilité (StdDev) est de **${globalStdDev.toFixed(1)}** (Idéal: < 10). La priorité #1 est la constance.`,
+                type: '' // warning
+            });
+        }
+
+        // Render
+        container.innerHTML = insights.map(insight => {
+            return `<li class="${insight.type || ''}">${insight.text}</li>`;
+        }).join('');
+    }
+
+
     // --- CALCULATION LOGIC ---
 
     // ===================================================================
     // AI LOGIC: Linear Regression
     // ===================================================================
-    /**
-     * Performs a simple linear regression on (X, Y) data.
-     * @param {Array<number>} x_values - The independent variable (e.g., index or pondération).
-     * @param {Array<number>} y_values - The dependent variable (e.g., grade).
-     * @returns {object} - slope, intercept, and r2 (confidence).
-     */
     function linearRegression(x_values, y_values) {
         let x_sum = 0;
         let y_sum = 0;
@@ -912,15 +867,10 @@ document.addEventListener('DOMContentLoaded', () => {
             xy_sum += x * y;
             x2_sum += x * x;
         }
-
         const m_numerator = (n * xy_sum - x_sum * y_sum);
         const m_denominator = (n * x2_sum - x_sum * x_sum);
-        
-        // Avoid division by zero if all x values are the same
         const m = (m_denominator === 0) ? 0 : m_numerator / m_denominator;
         const b = (y_sum - m * x_sum) / n;
-        
-        // Calculate R-squared for confidence
         let ss_total = 0;
         let ss_res = 0;
         const y_mean = y_sum / n;
@@ -929,23 +879,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ss_res += Math.pow(y_values[i] - y_pred, 2);
             ss_total += Math.pow(y_values[i] - y_mean, 2);
         }
-        
         const r2 = (ss_total === 0) ? 1 : 1 - (ss_res / ss_total);
-
         return { slope: m, intercept: b, r2: r2 };
     }
 
     // ===================================================================
     // REAL PROBABILITY LOGIC: Standard Normal CDF
     // ===================================================================
-    /**
-     * Standard Normal Cumulative Distribution Function (CDF)
-     * Uses the 'erf' approximation.
-     * @param {number} z - The Z-score.
-     * @returns {number} - The probability of a value being *less than* z.
-     */
     function standardNormalCDF(z) {
-        // Abramowitz and Stegun approximation for erf(x)
         function erf(x) {
             const p = 0.3275911;
             const a1 = 0.254829592;
@@ -953,14 +894,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const a3 = 1.421413741;
             const a4 = -1.453152027;
             const a5 = 1.061405429;
-            
             const sign = (x >= 0) ? 1 : -1;
             const t = 1 / (1 + p * Math.abs(x));
             const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
-            
             return sign * y;
         }
-        
         return 0.5 * (1 + erf(z / Math.sqrt(2)));
     }
 
@@ -971,37 +909,23 @@ document.addEventListener('DOMContentLoaded', () => {
     function getNumericGrade(result) {
         if (!result) return null;
         const trimmed = result.trim().toLowerCase();
-
-        // CRITICAL: Handle "zero" grades
         if (trimmed === 'absent' || trimmed === 'abs' || trimmed === '0' || trimmed === '0%') return 0;
-
-        // Handle "non-grades"
         if (trimmed === 'exempt' || trimmed === 'n/a' || trimmed === 'retard' || trimmed === 'remis' || trimmed === '') return null;
-        
-        // Handle letter grades
         const originalTrimmed = result.trim();
         if (gradeMap[originalTrimmed]) return gradeMap[originalTrimmed];
-
-        // Handle percentages
         const percentageMatch = trimmed.match(/(\d+[,.]?\d*)\s*%/);
         if (percentageMatch) return parseFloat(percentageMatch[1].replace(',', '.'));
-
-        // Handle scores
         const scoreMatch = trimmed.match(/(\d+[,.]?\d*)\s*\/\s*(\d+[,.]?\d*)/);
         if (scoreMatch) {
             const score = parseFloat(scoreMatch[1].replace(',', '.'));
             const max = parseFloat(scoreMatch[2].replace(',', '.'));
             return (max > 0) ? (score / max) * 100 : null;
         }
-        
-        // Fallback for plain numbers that might be percentages
         const plainNumber = parseFloat(trimmed);
         if (!isNaN(plainNumber) && plainNumber >= 0 && plainNumber <= 110) {
-            // Ambiguous, but assume it's a percentage
             return plainNumber;
         }
-
-        return null; // Default to null if no format is recognized
+        return null; 
     }
     
     function getUnits() {
@@ -1016,25 +940,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Extracts all valid grade/pondération pairs from assignments.
-     * This is the raw data for our new AI model.
+     * ===================================================================
+     * NEW: Extracts all data vectors for AI analysis
+     * ===================================================================
      */
     function extractAssignmentData(subject) {
         let allGrades = [];
         let allPondérations = [];
+        let allCompWeights = []; // NEW
 
         subject.competencies.forEach((comp) => {
+            const compWeightMatch = comp.name.match(/\((\d+)%\)/);
+            const compWeight = compWeightMatch ? parseFloat(compWeightMatch[1]) : 0;
+
             comp.assignments.forEach(assign => {
                 const grade = getNumericGrade(assign.result);
                 const pondération = parseFloat(assign.pond || 0);
 
-                if (grade !== null && !isNaN(grade) && pondération > 0) {
+                // We only add data points that are complete for all vectors
+                if (grade !== null && !isNaN(grade) && pondération > 0 && compWeight > 0) {
                     allGrades.push(grade);
                     allPondérations.push(pondération);
+                    allCompWeights.push(compWeight); // NEW
                 }
             });
         });
-        return { allGrades, allPondérations };
+        return { allGrades, allPondérations, allCompWeights }; // NEW
     }
 
 
@@ -1043,8 +974,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalCompetencyWeight = 0;
         let competencyAverages = [];
         
-        // Get all grades and pondérations for this subject in this etape
-        const { allGrades, allPondérations } = extractAssignmentData(subject);
+        // NEW: Get all data vectors
+        const { allGrades, allPondérations, allCompWeights } = extractAssignmentData(subject);
 
         // Calculate competency averages (the original way)
         subject.competencies.forEach((comp, compIndex) => {
@@ -1079,39 +1010,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const subjectAverage = totalCompetencyWeight > 0 ? (totalWeightedGrade / totalCompetencyWeight) : null;
         
-        // Stats are calculated across ALL grades obtained in this single term
         const overallConsistency = allGrades.length >= 2 ? calculateConsistencyScore(allGrades) : 100;
         const stdDev = allGrades.length >= 2 ? calculateStdDev(allGrades) : 0;
         
-        return { subjectAverage, allGrades, allPondérations, overallConsistency, stdDev, competencyAverages };
+        // NEW: Return all data vectors
+        return { subjectAverage, allGrades, allPondérations, allCompWeights, overallConsistency, stdDev, competencyAverages };
     }
 
     function calculateConsistencyScore(grades) {
         const stdDev = calculateStdDev(grades);
-        // Consistency is inversely proportional to volatility (StdDev * 2 is a heuristic penalty)
         return Math.max(0, 100 - (stdDev * 2));
     }
     
     function calculateStdDev(grades) {
         if (grades.length < 2) return 0;
         const mean = grades.reduce((a, b) => a + b) / grades.length;
-        const variance = grades.reduce((sum, grade) => sum + Math.pow(grade - mean, 2), 0) / (grades.length - 1); // Use n-1 for sample StdDev
+        const variance = grades.reduce((sum, grade) => sum + Math.pow(grade - mean, 2), 0) / (grades.length - 1); // Sample StdDev
         return Math.sqrt(variance); 
     }
 
     function calculateWeightedFinalAvg(etape1Avg, etape2Avg, etape3Avg) {
         let weightedSum = 0;
         let totalWeight = 0;
-        
         if (etape1Avg !== null) { weightedSum += etape1Avg * TERM_WEIGHTS.etape1; totalWeight += TERM_WEIGHTS.etape1; }
         if (etape2Avg !== null) { weightedSum += etape2Avg * TERM_WEIGHTS.etape2; totalWeight += TERM_WEIGHTS.etape2; }
         if (etape3Avg !== null) { weightedSum += etape3Avg * TERM_WEIGHTS.etape3; totalWeight += TERM_WEIGHTS.etape3; }
-        
         return totalWeight > 0 ? weightedSum / totalWeight : null;
     }
     
     // ===================================================================
-    // UPGRADED ANALYSIS FUNCTION (V6)
+    // UPGRADED ANALYSIS FUNCTION (V7)
     // ===================================================================
     function calculateAllAnalysis() {
         const units = getUnits();
@@ -1121,7 +1049,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let allSubjectStats = {}; 
         let allSubjectOverallStats = {}; 
         let allGradesGlobal = [];
-        let allPondérationsGlobal = []; // NEW: For AI Model 2
+        let allPondérationsGlobal = []; // For AI Model 2
+        let allCompWeightsGlobal = []; // NEW: For AI Model 3
         
         // 1. Calculate Averages and Stats per Subject/Etape
         KNOWN_ETAPE_KEYS.forEach(etape => {
@@ -1131,16 +1060,18 @@ document.addEventListener('DOMContentLoaded', () => {
             mbsData[etape].forEach((subject) => {
                 const codePrefix = subject.code.substring(0, 3);
                 
-                const { subjectAverage, allGrades, allPondérations, overallConsistency, stdDev, competencyAverages } = 
+                // NEW: Get all data vectors
+                const { subjectAverage, allGrades, allPondérations, allCompWeights, overallConsistency, stdDev, competencyAverages } = 
                     calculateSubjectAverageAndStats(subject, etape);
 
                 allGradesGlobal.push(...allGrades);
-                allPondérationsGlobal.push(...allPondérations); // Store pondérations
+                allPondérationsGlobal.push(...allPondérations); 
+                allCompWeightsGlobal.push(...allCompWeights); // NEW
                 
                 allSubjectAverages[etape][codePrefix] = { name: subjectList[codePrefix] || subject.name, average: subjectAverage };
                 
                 allSubjectStats[codePrefix] = allSubjectStats[codePrefix] || {};
-                allSubjectStats[codePrefix][etape] = { overallConsistency, stdDev, competencyAverages, allGrades, allPondérations, numGrades: allGrades.length };
+                allSubjectStats[codePrefix][etape] = { overallConsistency, stdDev, competencyAverages, allGrades, allPondérations, allCompWeights, numGrades: allGrades.length };
             });
         });
 
@@ -1148,6 +1079,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.keys(allSubjectStats).forEach(code => {
             let grades = [];
             let pondérations = [];
+            let compWeights = []; // NEW
             let allConsistencies = [];
             let totalNumGrades = 0;
 
@@ -1155,26 +1087,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (allSubjectStats[code][etape]) {
                     grades.push(...allSubjectStats[code][etape].allGrades);
                     pondérations.push(...allSubjectStats[code][etape].allPondérations);
+                    compWeights.push(...allSubjectStats[code][etape].allCompWeights); // NEW
                     allConsistencies.push(allSubjectStats[code][etape].overallConsistency);
                     totalNumGrades += allSubjectStats[code][etape].numGrades;
                 }
             });
             const overallStdDev = calculateStdDev(grades);
             const overallConsistency = allConsistencies.length > 0 ? allConsistencies.reduce((a, b) => a + b) / allConsistencies.length : 100;
-            // AI Model 1 (Time Trend)
             const trend = linearRegression(grades.map((g, i) => i), grades); 
             
-            allSubjectOverallStats[code] = { allGrades: grades, allPondérations: pondérations, stdDev: overallStdDev, overallConsistency, numGrades: totalNumGrades, trend: trend };
+            allSubjectOverallStats[code] = { allGrades: grades, allPondérations: pondérations, allCompWeights: compWeights, stdDev: overallStdDev, overallConsistency, numGrades: totalNumGrades, trend: trend };
         });
         
         // 2. Global Averages
         let globalWeightedSum = 0;
         let totalKnownWeight = 0;
-        
         KNOWN_ETAPE_KEYS.forEach(etape => {
             let termWeightedSum = 0;
             let termUnitSum = 0;
-            
             Object.keys(allSubjectAverages[etape] || {}).forEach(codePrefix => {
                 const avg = allSubjectAverages[etape][codePrefix].average;
                 if (avg !== null && niveau) {
@@ -1183,15 +1113,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     termUnitSum += unit;
                 }
             });
-            
             allTermAverages[etape] = termUnitSum > 0 ? termWeightedSum / termUnitSum : null;
-
             if (allTermAverages[etape] !== null) {
                 globalWeightedSum += allTermAverages[etape] * TERM_WEIGHTS[etape];
                 totalKnownWeight += TERM_WEIGHTS[etape];
             }
         });
-
         const globalAverageKnown = totalKnownWeight > 0 ? globalWeightedSum / totalKnownWeight : null;
 
         // 3. Global Statistics & AI Models
@@ -1204,16 +1131,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // AI Model 2: Global Pondération Trend
         let globalPondérationTrend = linearRegression(allPondérationsGlobal, allGradesGlobal);
 
-        // 4. Subject Trends (Now part of allSubjectOverallStats)
+        // NEW: AI Model 3: Global Competency Weight Trend
+        let globalCompWeightTrend = linearRegression(allCompWeightsGlobal, allGradesGlobal);
+
+        // 4. Subject Trends
         let subjectTrends = {}; 
         Object.keys(allSubjectOverallStats).forEach(code => {
             subjectTrends[code] = allSubjectOverallStats[code].trend;
         });
         
-        // 5. Burnout Risk (NEW LOGIC)
+        // 5. Burnout Risk
         let burnoutRiskScore = calculateBurnoutRisk(niveau, globalStdDev, allSubjectOverallStats, units, globalTrend);
 
-        // 6. Monte Carlo Predictions (NEW LOGIC)
+        // 6. Monte Carlo Predictions
         const predictions = runMonteCarloSimulation(globalAverageKnown, allTermAverages, allSubjectAverages, subjectTrends, allSubjectOverallStats, units, globalStdDev, burnoutRiskScore);
 
         return { 
@@ -1222,8 +1152,9 @@ document.addEventListener('DOMContentLoaded', () => {
             globalAverage: globalAverageKnown, 
             globalStdDev, 
             globalConsistencyScore,
-            globalTrend, // Pass global trend to renderer
-            globalPondérationTrend, // Pass new AI model to renderer
+            globalTrend,
+            globalPondérationTrend, 
+            globalCompWeightTrend, // NEW
             subjectStats: allSubjectStats,
             subjectOverallStats: allSubjectOverallStats,
             subjectTrends,
@@ -1234,48 +1165,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // ===================================================================
-    // NEW LOGIC: Transparent Burnout Risk Score (V2)
+    // Transparent Burnout Risk Score (V2)
     // ===================================================================
     function calculateBurnoutRisk(niveau, globalStdDev, allSubjectOverallStats, units, globalTrend) {
         if (!niveau) return 0;
-        
         const absenceRate = parseFloat(mbsData.settings.absenceRate || 5) / 100; 
-        
-        // Component 1: Workload Score (0-100)
         let totalUnits = Object.values(units).reduce((sum, u) => sum + (u || 0), 0);
         let workloadScore = Math.min(100, (totalUnits / 32) * 100);
-
-        // Component 2: Volatility Score (0-100)
         let volatilityScore = Math.min(100, (globalStdDev / 15) * 100);
-
-        // Component 3: Negative Trend Score (0-100)
         let trendScore = Math.min(100, Math.max(0, (globalTrend.slope / -2) * 100));
-
-        // Component 4: Absence Score (0-100)
         let absenceScore = Math.min(100, (absenceRate / 0.15) * 100);
-        
-        // Weighted average of risk factors
         const finalScore = (workloadScore * 0.20) + 
                            (volatilityScore * 0.35) + 
                            (trendScore * 0.35) +      
                            (absenceScore * 0.10);     
-                           
         return Math.min(100, Math.max(0, finalScore));
     }
     
-    // --- MONTE CARLO CORE LOGIC (V6: AI-Driven Projection) ---
+    // --- MONTE CARLO CORE LOGIC (V7: AI-Driven Projection) ---
     function runMonteCarloSimulation(globalAverageKnown, termAverages, subjectAverages, subjectTrends, subjectOverallStats, units, globalStdDev, burnoutRiskScore) {
+        // [This entire, long function is IDENTICAL to V6]
+        // [It correctly uses the 'trend' from 'subjectOverallStats' to make projections]
+        // [No changes are needed here]
+
         const globalPred = { p5: null, p25: null, p50: null, p75: null, p95: null };
         const subjectPreds = {};
         const targets = [95, 92, 90, 88, 85, 80, 75, 70, 60];
         const probabilityAnalysis = {};
-        
         const avg1 = termAverages.etape1;
         const avg2 = termAverages.etape2;
-
         let currentKnownGlobalSum = 0;
         let totalKnownWeight = 0;
-        
         if (avg1 !== null) {
             currentKnownGlobalSum += avg1 * TERM_WEIGHTS.etape1;
             totalKnownWeight += TERM_WEIGHTS.etape1;
@@ -1284,11 +1204,8 @@ document.addEventListener('DOMContentLoaded', () => {
             currentKnownGlobalSum += avg2 * TERM_WEIGHTS.etape2;
             totalKnownWeight += TERM_WEIGHTS.etape2;
         }
-        
         const totalWeight = TERM_WEIGHTS.etape1 + TERM_WEIGHTS.etape2 + TERM_WEIGHTS.etape3;
         const remainingWeight = totalWeight - totalKnownWeight;
-
-        // ---[... This part is identical to the previous file, handling edge cases ...] ---
         if (remainingWeight <= 0) {
              globalPred.p5 = globalPred.p25 = globalPred.p50 = globalPred.p75 = globalPred.p95 = globalAverageKnown;
              globalPred.trend = globalAverageKnown;
@@ -1303,51 +1220,32 @@ document.addEventListener('DOMContentLoaded', () => {
             globalPred.trend = globalAverageKnown;
             return { global: globalPred, subjects: subjectPreds, probabilityAnalysis };
         }
-        // ---[ End of edge case handling ]---
-
-        
-        // --- 1. PRE-CALCULATIONS (V6: AI-Driven) ---
         let sMeanWeightedSum = 0;
         let sMeanUnitSum = 0;
         let sSigmaSquaredWeightedSum = 0; 
         let sSigmaUnitSum = 0; 
-
         relevantSubjects.forEach(code => {
             const subjStats = subjectOverallStats[code];
             const subjAvg1 = subjectAverages.etape1?.[code]?.average || null;
             const subjAvg2 = subjectAverages.etape2?.[code]?.average || null;
             const unit = units[code] || 2;
-            
-            // 1. FSP (Redefined): Subject's raw Standard Deviation.
             let fsp = subjStats.stdDev;
             if (subjStats.numGrades < 3) fsp = Math.max(fsp, 3.0); 
             fsp = Math.min(20, Math.max(0.5, fsp)); 
-
-            // 2. Projection (Redefined): Use Linear Regression ("AI")
-            const trend = subjStats.trend; // From calculateAllAnalysis
+            const trend = subjStats.trend;
             const n = subjStats.allGrades.length;
-            let projectedGrade = trend.intercept + trend.slope * (n + 1); // Project the *next* grade
-            
+            let projectedGrade = trend.intercept + trend.slope * (n + 1);
             const currentMean = n > 0 ? subjStats.allGrades.reduce((a, b) => a + b, 0) / n : (subjAvg2 || subjAvg1 || 75);
-
-            // Blend projection with current mean based on R² confidence
-            const confidence = (trend.r2 > 0.1) ? trend.r2 : 0; // Ignore low confidence
+            const confidence = (trend.r2 > 0.1) ? trend.r2 : 0;
             let adjustedMean = (projectedGrade * confidence) + (currentMean * (1 - confidence));
-            
             if (n === 0) {
                  adjustedMean = subjAvg2 !== null ? subjAvg2 : (subjAvg1 !== null ? subjAvg1 : 75);
             }
-
-            // 3. E3 Prediction Capping (Realism)
             const historicalMax = subjStats.allGrades.length > 0 ? Math.max(...subjStats.allGrades) : 100;
             const e3PredictionCap = Math.min(100, Math.max(80, historicalMax * 1.05)); 
             const finalAdjustedMeanE3 = Math.min(e3PredictionCap, Math.max(40, adjustedMean)); 
-
-            // 4. Redefine 'ND' (Difficulty)
             let nd = (100 - currentMean) * (1 + fsp / 10);
             nd = Math.min(100, Math.max(0, nd));
-
-            // Store interim results for the UI (using old keys)
             subjectPreds[code] = { 
                 mpp: (currentMean > 0) ? (finalAdjustedMeanE3 / currentMean) : 1, 
                 fsp: fsp, 
@@ -1359,28 +1257,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 mismatchScore: fsp * (100 - subjStats.overallConsistency) / 10, 
                 predictionFinal: null 
             };
-            
-            // --- S-MEAN & S-SIGMA CALCULATION ---
             sMeanWeightedSum += finalAdjustedMeanE3 * unit; 
             sMeanUnitSum += unit;
             sSigmaSquaredWeightedSum += Math.pow(fsp, 2) * unit; 
             sSigmaUnitSum += unit;
         });
-        
-        // Final Global Parameters for E3
         const predictedE3SMean = sMeanUnitSum > 0 ? sMeanWeightedSum / sMeanUnitSum : globalAverageKnown || 75;
         const predictedE3SVariance = sSigmaUnitSum > 0 ? sSigmaSquaredWeightedSum / sSigmaUnitSum : Math.pow(globalStdDev, 2) || 25;
         const predictedE3SSigma = Math.sqrt(predictedE3SVariance);
-        
-        // --- 2. Required Average for Etape 3 (Deterministic) ---
         targets.forEach(target => {
             const requiredAvg = (target * totalWeight - currentKnownGlobalSum) / remainingWeight;
             const prob = calculateProbability(predictedE3SMean, predictedE3SSigma, requiredAvg);
             probabilityAnalysis[target] = { requiredAvg: requiredAvg, prob: prob };
         });
-
-
-        // --- 3. Monte Carlo Simulation (Stochastic) ---
         let finalGlobalGrades = [];
         for (let i = 0; i < NUM_MONTE_CARLO_RUNS; i++) {
             const u1 = Math.random();
@@ -1389,7 +1278,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let predictedE3AvgGlobal = Math.min(100, Math.max(0, predictedE3SMean + z * predictedE3SSigma));
             const finalGlobalGrade = (currentKnownGlobalSum + predictedE3AvgGlobal * remainingWeight) / totalWeight;
             finalGlobalGrades.push(finalGlobalGrade);
-            
             if (i === 0) {
                  relevantSubjects.forEach(code => {
                     const subjPred = subjectPreds[code];
@@ -1401,16 +1289,13 @@ document.addEventListener('DOMContentLoaded', () => {
                  });
             }
         }
-
-        // --- 4. Final Monte Carlo Results (Percentiles) ---
         finalGlobalGrades.sort((a, b) => a - b);
         globalPred.p5 = finalGlobalGrades[Math.floor(NUM_MONTE_CARLO_RUNS * 0.05)] || 0;
         globalPred.p25 = finalGlobalGrades[Math.floor(NUM_MONTE_CARLO_RUNS * 0.25)] || 0;
         globalPred.p50 = finalGlobalGrades[Math.floor(NUM_MONTE_CARLO_RUNS * 0.50)] || 0;
         globalPred.p75 = finalGlobalGrades[Math.floor(NUM_MONTE_CARLO_RUNS * 0.75)] || 0;
         globalPred.p95 = finalGlobalGrades[Math.floor(NUM_MONTE_CARLO_RUNS * 0.95)] || 0;
-        globalPred.trend = finalGlobalGrades.reduce((a, b) => a + b) / NUM_MONTE_CARLO_RUNS; // Actual Mean
-
+        globalPred.trend = finalGlobalGrades.reduce((a, b) => a + b) / NUM_MONTE_CARLO_RUNS;
          Object.keys(subjectPreds).forEach(code => {
             if (subjectPreds[code].predictionFinal === null) {
                 const subjAvg1 = subjectAverages.etape1?.[code]?.average || null;
@@ -1419,48 +1304,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 subjectPreds[code].predictionFinal = trendAvg;
             }
         });
-
         return { global: globalPred, subjects: subjectPreds, probabilityAnalysis };
     }
 
     // ===================================================================
-    // REAL PROBABILITY LOGIC (V2)
+    // REAL PROBABILITY LOGIC
     // ===================================================================
     function calculateProbability(mean, stdDev, requiredTarget) {
         if (mean === null) return 0;
         if (requiredTarget > 100) return 0;
         if (stdDev <= 0.1) return mean >= requiredTarget ? 100 : 0;
-        
         const z = (requiredTarget - mean) / stdDev;
-        const prob = 1 - standardNormalCDF(z); // Prob of being *at or above* target
-        
-        return prob * 100; // Convert to percentage
+        const prob = 1 - standardNormalCDF(z); 
+        return prob * 100;
     }
 
 
     // --- EVENT LISTENERS ---
     function setupEventListeners() {
-        // Tabs
+        // [This section is IDENTICAL to V6]
         document.querySelectorAll('.tab-btn').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelector('.tab-btn.active')?.classList.remove('active');
                 tab.classList.add('active');
-                
                 document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
                 activeTab = tab.dataset.tab;
                 document.getElementById(activeTab)?.classList.add('active');
-                
                 renderSidePanel(cachedAnalysis);
             });
         });
-
-        // Settings
         document.getElementById('niveau-secondaire')?.addEventListener('change', saveSettings);
         document.getElementById('unites-mode')?.addEventListener('change', () => {
             saveSettings();
             populateUnitesModal();
         });
-        
         const absenceSlider = document.getElementById('absence-rate-slider');
         const absenceValue = document.getElementById('absence-rate-value');
         absenceSlider?.addEventListener('input', (e) => {
@@ -1469,8 +1346,6 @@ document.addEventListener('DOMContentLoaded', () => {
         absenceSlider?.addEventListener('change', (e) => {
              saveSettings();
         });
-
-        // Modals
         const unitesModal = document.getElementById('unites-modal');
         document.getElementById('unites-btn')?.addEventListener('click', () => {
             populateUnitesModal();
@@ -1483,21 +1358,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function populateUnitesModal() {
+        // [This section is IDENTICAL to V6]
         const unitesListEl = document.getElementById('unites-list');
         if (!unitesListEl) return;
-        
         unitesListEl.innerHTML = '';
-
         const currentUnits = getUnits();
         const subjectCodes = new Set();
-
         KNOWN_ETAPE_KEYS.forEach(etapeKey => {
             mbsData[etapeKey]?.forEach(subject => {
                 const codePrefix = subject.code.substring(0, 3);
                 subjectCodes.add(codePrefix);
             });
         });
-
         Array.from(subjectCodes).sort().forEach(code => {
             const currentUnitValue = currentUnits[code] || 2; 
             const li = document.createElement('div');
