@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analyseur Dynamique V10 (Pathfinder Fix)</title>
+    <title>Analyseur Dynamique V11 (Cibles Personnalisées)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* [All the CSS from the previous file remains exactly the same] */
@@ -143,6 +143,20 @@
         .prob-high { background-color: #D1FAE5; color: #065F46; font-weight: 700;}
         .prob-medium { background-color: #FEF3C7; color: #92400E; }
         .prob-low { background-color: #FEE2E2; color: #991B1B; }
+        
+        /* NEW: Custom Target Input */
+        .probability-table tfoot td {
+            padding: 0.5rem;
+            background-color: #f9fafb;
+        }
+        .custom-target-input {
+            width: 6rem;
+            text-align: center;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+        }
+
         .modal {
             position: fixed;
             top: 0;
@@ -292,7 +306,7 @@
     <div class="main-container">
 
         <div class="side-panel lg:sticky lg:top-4">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Moteur Stochastique V10 (Fix)</h2>
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Moteur Stochastique V11 (Fix)</h2>
 
             <div class="bg-violet-100 p-4 rounded-lg mb-4 border-l-4 border-violet-600">
                 <p class="text-sm font-medium text-gray-700">Prédiction Globale Stochastique (Tendance MC)</p>
@@ -424,6 +438,16 @@
                         </thead>
                         <tbody id="probability-table-body-e2">
                             </tbody>
+                        <tfoot>
+                            <tr id="custom-row-e2">
+                                <td>
+                                    <input type="number" id="custom-target-e2-input" data-etape="e2" class="custom-target-input" placeholder="Cible...">
+                                </td>
+                                <td id="custom-avg-e2">--</td>
+                                <td id="custom-prob-e2">--</td>
+                                <td id="custom-risk-e2">--</td>
+                            </tr>
+                        </tfoot>
                     </table>
 
                     <h3 class="text-xl font-semibold mb-3 mt-8 text-gray-700 border-t pt-4">Analyse de Chemin : Moyenne Requise à l'Étape 3</h3>
@@ -439,6 +463,16 @@
                         </thead>
                         <tbody id="probability-table-body-e3">
                             </tbody>
+                        <tfoot>
+                             <tr id="custom-row-e3">
+                                <td>
+                                    <input type="number" id="custom-target-e3-input" data-etape="e3" class="custom-target-input" placeholder="Cible...">
+                                </td>
+                                <td id="custom-avg-e3">--</td>
+                                <td id="custom-prob-e3">--</td>
+                                <td id="custom-risk-e3">--</td>
+                            </tr>
+                        </tfoot>
                     </table>
 
                      <h3 class="text-xl font-semibold mb-3 mt-8 text-gray-700 border-t pt-4">Prédictions Tendancielles Détaillées par Matière</h3>
@@ -466,23 +500,20 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- CONSTANTS AND STATE ---
+    // [This section is IDENTICAL to V9]
     const gradeMap = { 'A+': 100, 'A': 95, 'A-': 90, 'B+': 85, 'B': 80, 'B-': 75, 'C+': 70, 'C': 65, 'C-': 60, 'D+': 55, 'D': 50, 'E': 45 };
     const defaultUnits = {
         sec4: { 'ART': 2, 'MUS': 2, 'DRM': 2, 'FRA': 6, 'ELA': 4, 'EESL': 6, 'ESL': 4, 'MAT': 6, 'CST': 6, 'ST': 4, 'STE': 4, 'HQC': 4, 'CCQ': 2, 'EPS': 2, 'ENT': 2, 'INF': 2, 'PSY': 2, 'SN': 6 },
         sec5: { 'ART': 2, 'MUS': 2, 'DRM': 2, 'CAT': 4, 'FRA': 6, 'ELA': 6, 'EESL': 6, 'ESL': 4, 'MAT': 6, 'CST': 4, 'MED': 4, 'PSY': 4, 'ENT': 4, 'FIN': 4, 'CHI': 4, 'PHY': 4, 'MON': 2, 'HQC': 4, 'CCQ': 2, 'EPS': 2, 'SN': 6 }
     };
     const subjectList = { 'ART': "Arts Plastiques", 'MUS': "Musique", 'DRM': "Art Dramatique", 'CAT': "Conception et Application Technologique", 'FRA': "Français", 'ELA': "English Language Arts", 'EESL': "Anglais enrichi", 'ESL': "Anglais langue seconde", 'SN': "Math SN", 'CST': "Math CST", 'ST': "Science et Technologie", 'STE': "Science et Tech. Env.", 'HQC': "Histoire", 'CCQ': "Culture et Citoyenneté", 'EPS': "Éducation Physique", 'CHI': "Chimie", 'PHY': "Physique", 'MON': "Monde Contemporain", 'MED': "Média", 'ENT': "Entrepreneuriat", 'INF': "Informatique", 'PSY': "Psychologie", 'FIN': "Éducation Financière" };
-    
-    // AI KNOWLEDGE BASE (V8)
     const subjectGroups = {
         'STEM': ['MAT', 'CST', 'SN', 'ST', 'STE', 'CHI', 'PHY', 'CAT', 'INF', 'FIN'],
         'Langues': ['FRA', 'ELA', 'EESL', 'ESL'],
         'Sciences Humaines': ['HQC', 'CCQ', 'MON', 'PSY', 'ENT', 'MED'],
         'Arts & Autre': ['ART', 'MUS', 'DRM', 'EPS']
     };
-    
     const TERM_WEIGHTS = { etape1: 0.20, etape2: 0.20, etape3: 0.60 };
-
     let mbsData = {};
     let activeTab = 'etape1';
     let cachedAnalysis = null;
@@ -491,6 +522,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const AI_R2_THRESHOLD = 0.25; 
 
     // --- INITIALIZATION ---
+    // [This section is IDENTICAL to V9]
     function init() {
         try {
             mbsData = JSON.parse(localStorage.getItem('mbsData')) || { 
@@ -511,7 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- DATA & SETTINGS MANAGEMENT ---
-    // [This section is IDENTICAL to V8]
+    // [This section is IDENTICAL to V9]
     function loadSettings() {
         const settings = mbsData.settings || {};
         document.getElementById('niveau-secondaire').value = settings.niveau || '';
@@ -543,25 +575,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- RENDERING FUNCTIONS ---
+    // [This section is IDENTICAL to V9]
     function renderAll() {
         renderTermTables();
         const analysis = cachedAnalysis;
         renderSidePanel(analysis);
         renderDeepAnalysis(analysis);
         generateAndRenderInsights(analysis); 
-        renderPerformanceGauge(analysis); // Render the gauge
+        renderPerformanceGauge(analysis); 
         renderMonteCarlo(analysis);
         renderMismatchAnalysis(analysis);
     }
-    
-    // [renderTermTables, renderTermData, renderSubjectTable, renderSubjectAnalysis, renderMismatchAnalysis are IDENTICAL to V8]
     function renderTermTables() {
         ['etape1', 'etape2', 'etape3'].forEach(key => {
             const container = document.getElementById(key);
             if (container) renderTermData(mbsData[key], container, key, cachedAnalysis);
         });
     }
-
     function renderTermData(termData, container, etapeKey, analysis) {
         if (!container) return; 
         const allSubjectsInTerm = Object.keys(analysis.subjectStats).filter(code => analysis.subjectStats[code]?.[etapeKey]);
@@ -582,7 +612,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     function renderSubjectTable(subject, etapeKey, subjStats, analysis) {
         const table = document.createElement('table');
         table.className = 'subject-table';
@@ -620,7 +649,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tbody) tbody.appendChild(summaryRow);
         return table;
     }
-
     function renderSubjectAnalysis(subjectCode, etapeKey, analysis) {
         const analysisDiv = document.createElement('div');
         analysisDiv.className = 'subject-analysis';
@@ -671,7 +699,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         return analysisDiv;
     }
-
     function renderMismatchAnalysis(analysis) {
         const container = document.getElementById('mismatch-analysis');
         if (!container) return;
@@ -708,7 +735,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         container.innerHTML = mismatchHtml;
     }
-
     function renderSidePanel(analysis) {
         const formatAvg = (avg) => avg !== null ? `<span class="grade-percentage">${avg.toFixed(2)}%</span>` : '--';
         const mcTrend = analysis.predictions.global?.trend;
@@ -729,7 +755,6 @@ document.addEventListener('DOMContentLoaded', () => {
             subjectListEl.innerHTML = '<li class="no-data text-gray-500">Aucune matière pour cette étape</li>';
         }
     }
-
     function renderDeepAnalysis(analysis) {
         const { globalConsistencyScore, burnoutRiskScore, aiModels } = analysis;
         const consistencyEl = document.getElementById('consistency-score');
@@ -759,48 +784,29 @@ document.addEventListener('DOMContentLoaded', () => {
             dffEl.querySelector('p').textContent = `Facteur de Tendance Globale (Pente / 10 devoirs)`;
         }
     }
-
-    /**
-     * ===================================================================
-     * NEW: Performance Gauge Renderer
-     * ===================================================================
-     */
     function renderPerformanceGauge(analysis) {
+        // [This section is IDENTICAL to V9]
         const { p5, p50, p95 } = analysis.predictions.global;
         if (p5 === null || p50 === null || p95 === null) return;
-
         const needle = document.getElementById('gauge-needle');
         const p5Label = document.getElementById('gauge-label-p5');
         const p50Label = document.getElementById('gauge-label-p50');
         const p95Label = document.getElementById('gauge-label-p95');
-
         p5Label.textContent = `P5: ${p5.toFixed(1)}%`;
         p50Label.textContent = `P50: ${p50.toFixed(1)}%`;
         p95Label.textContent = `P95: ${p95.toFixed(1)}%`;
-
         const range = p95 - p5;
         if (range <= 0) {
             needle.style.left = '50%';
             return;
         }
-
         const position = (p50 - p5) / range;
         const needlePosition = Math.max(0, Math.min(100, position * 100));
-        
         needle.style.left = `${needlePosition}%`;
     }
-
-
-    /**
-     * ===================================================================
-     * NEW: Monte Carlo Renderer (V9)
-     * Now renders TWO path analysis tables.
-     * ===================================================================
-     */
     function renderMonteCarlo(analysis) {
+        // [This section is IDENTICAL to V9]
         const { predictions, probabilityAnalysisE2, probabilityAnalysisE3 } = analysis;
-        
-        // --- 1. Global Predictions (P5-P95) ---
         const globalPredEl = document.getElementById('global-predictions');
         if (!globalPredEl) return;
         const predictionScenarios = [
@@ -825,20 +831,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         }).join('');
-
-        // --- 2. Path Analysis Tables (E2 and E3) ---
         const targets = [95, 92, 90, 88, 85, 80, 75, 70, 60];
         const probTableEl_E2 = document.getElementById('probability-table-body-e2');
         const probTableEl_E3 = document.getElementById('probability-table-body-e3');
-        
-        // Helper function to render a table body
         const renderProbTable = (analysisData) => {
             if (!analysisData) return '';
             return targets.map(target => {
                 const data = analysisData[target];
                 if (!data) return '';
                 const { requiredAvg, prob } = data;
-                
                 let probClass = 'prob-low';
                 let effort = 'Effort Extrême (Statistiquement Improbable)';
                 if (prob >= 80) { probClass = 'prob-high'; effort = 'Maintenir Consistance (Très Faisable)'; }
@@ -848,7 +849,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 let requiredAvgDisplay = requiredAvg !== null ? (requiredAvg > 100 ? 'IMPOSSIBLE (100+)' : `${requiredAvg.toFixed(2)}%`) : '--';
                 if (requiredAvg !== null && requiredAvg < 60) requiredAvgDisplay = `<span class="text-green-600">FAIBLE (${requiredAvg.toFixed(2)}%)</span>`;
                 else if (requiredAvg !== null && requiredAvg > 100) requiredAvgDisplay = `<span class="text-red-600">IMPOSSIBLE (100+%)</span>`;
-                
                 return `
                     <tr class="${probClass}">
                         <td>${target}%</td>
@@ -859,15 +859,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }).join('');
         };
-        
         if (probTableEl_E2) {
             probTableEl_E2.innerHTML = renderProbTable(probabilityAnalysisE2);
         }
         if (probTableEl_E3) {
             probTableEl_E3.innerHTML = renderProbTable(probabilityAnalysisE3);
         }
-        
-        // --- 3. Subject Predictions ---
         const subjPredEl = document.getElementById('subject-predictions-list');
         if (!subjPredEl) return;
         const sortedSubjects = Object.entries(predictions.subjects).sort(([codeA], [codeB]) => {
@@ -890,12 +887,10 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }).join('');
     }
-
-
+    
     /**
      * ===================================================================
-     * NEW: AI DISCOVERY ENGINE (V9 - Clarity Engine)
-     * This version adds the average to the insight to resolve user confusion.
+     * NEW: AI DISCOVERY ENGINE (V10 - Clarity Fix)
      * ===================================================================
      */
     function generateAndRenderInsights(analysis) {
@@ -905,12 +900,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let insights = [];
         
-        // --- 1. The Headline (B-Risk) ---
         let riskLabel = "faible";
         let riskClass = "insight-good";
         if (burnoutRiskScore > 70) {
             riskLabel = "Élevé";
-            riskClass = ""; // Default (warning)
+            riskClass = ""; 
         } else if (burnoutRiskScore > 45) {
             riskLabel = "Modéré";
             riskClass = "insight-info";
@@ -920,26 +914,21 @@ document.addEventListener('DOMContentLoaded', () => {
             type: riskClass
         });
 
-        // --- 2. The "AI Discovery" Engine ---
         const goodModels = aiModels
-            .filter(m => m.model.r2 > AI_R2_THRESHOLD) // Use the global threshold
-            .sort((a, b) => b.model.r2 - a.model.r2); // Sort by strongest correlation
+            .filter(m => m.model.r2 > AI_R2_THRESHOLD) 
+            .sort((a, b) => b.model.r2 - a.model.r2); 
 
         if (goodModels.length > 0) {
-            // --- PROFILE: TREND-BASED ---
             insights.push({ 
                 text: `J'ai scanné ${aiModels.length} combinaisons et **trouvé ${goodModels.length} schéma(s) fiable(s)** dans votre performance :`,
                 type: 'insight-info'
             });
 
-            // Report the Top 3 strongest patterns
             goodModels.slice(0, 3).forEach(m => {
                 let text = '';
                 let riskClass = 'insight-good';
-                // NEW: Get the average for this data slice
                 const avg = m.data.grades.reduce((a, b) => a + b, 0) / m.data.grades.length;
                 
-                // NEW: Formats name like "Tendance (Temps) en Chimie"
                 const [category, type] = m.name.split(' (');
                 const modelType = type.replace(')', '');
                 const name = (category === 'Global') ? `${modelType}` : `${modelType} en ${category}`;
@@ -947,9 +936,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (m.model.slope > 0.1) {
                     text = `**${name} (Moy: ${avg.toFixed(0)}%)**: Vous avez une **tendance positive claire**. (Confiance: ${(m.model.r2 * 100).toFixed(0)}%)`;
                 } else if (m.model.slope < -0.1) {
-                    // This is the fix for the user's "97% and negative" confusion
                     text = `**${name} (Moy: ${avg.toFixed(0)}%)**: Tendance **négative**. Vos notes baissent, même si votre moyenne est élevée. (Confiance: ${(m.model.r2 * 100).toFixed(0)}%)`;
-                    riskClass = ''; // warning
+                    riskClass = ''; 
                 } else {
                     text = `**${name} (Moy: ${avg.toFixed(0)}%)**: Votre performance est **stable et constante**. (Confiance: ${(m.model.r2 * 100).toFixed(0)}%)`;
                 }
@@ -957,18 +945,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
         } else {
-            // --- PROFILE: ERRATIC ---
             insights.push({ 
                 text: `Mon diagnostic principal est que votre performance est **erratique**. Je n'ai trouvé **aucun schéma fiable** (R² < ${(AI_R2_THRESHOLD * 100).toFixed(0)}%) sur les ${aiModels.length} combinaisons analysées.`,
                 type: 'insight-erratic'
             });
             insights.push({
                 text: `Cette imprévisibilité est le principal facteur de votre B-Risk. Votre Volatilité (StdDev) est de **${globalStdDev.toFixed(1)}** (Idéal: < 10). La priorité #1 est la constance.`,
-                type: '' // warning
+                type: '' 
             });
         }
 
-        // Render
         container.innerHTML = insights.map(insight => {
             return `<li class="${insight.type || ''}">${insight.text}</li>`;
         }).join('');
@@ -1167,9 +1153,9 @@ document.addEventListener('DOMContentLoaded', () => {
      * This now correctly calculates the required average for E2 and E3.
      * ===================================================================
      */
-    function calculatePathAnalysis(targetEtapeKey, allTermAverages, predictedMean, predictedStdDev) {
+    function calculatePathAnalysis(targetEtapeKey, allTermAverages, predictedMean, predictedStdDev, customTargets = null) {
         const probabilityAnalysis = {};
-        const targets = [95, 92, 90, 88, 85, 80, 75, 70, 60];
+        const targets = customTargets || [95, 92, 90, 88, 85, 80, 75, 70, 60];
         
         let currentKnownGlobalSum = 0;
         let knownWeight = 0;
@@ -1198,6 +1184,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 knownWeight += TERM_WEIGHTS.etape2;
             }
             remainingWeight = TERM_WEIGHTS.etape3;
+        }
+
+        // If Etape 1 has no data, Etape 2 analysis is not possible yet.
+        if (targetEtapeKey === 'etape2' && allTermAverages.etape1 === null) {
+             remainingWeight = 0; 
         }
 
         if (remainingWeight <= 0) {
@@ -1364,7 +1355,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const { predictions, predictedE3SMean, predictedE3SSigma } = runMonteCarloSimulation(globalAverageKnown, allTermAverages, allSubjectAverages, subjectTrends, allSubjectOverallStats, units, globalStdDev, burnoutRiskScore);
 
         // 7. NEW: Path Analysis
-        // This was the bug fix. Pass the projected E3 mean/sigma to *both* functions.
         const probabilityAnalysisE2 = calculatePathAnalysis('etape2', allTermAverages, predictedE3SMean, predictedE3SSigma);
         const probabilityAnalysisE3 = calculatePathAnalysis('etape3', allTermAverages, predictedE3SMean, predictedE3SSigma);
 
@@ -1381,7 +1371,9 @@ document.addEventListener('DOMContentLoaded', () => {
             burnoutRiskScore,
             predictions,
             probabilityAnalysisE2, // NEW
-            probabilityAnalysisE3  // NEW
+            probabilityAnalysisE3, // NEW
+            predictedE3SMean, // NEW: Pass this for custom calcs
+            predictedE3SSigma // NEW: Pass this for custom calcs
         };
     }
     
@@ -1545,8 +1537,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- EVENT LISTENERS ---
-    // [This section is IDENTICAL to V8]
     function setupEventListeners() {
+        // [IDENTICAL to V9]
         document.querySelectorAll('.tab-btn').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelector('.tab-btn.active')?.classList.remove('active');
@@ -1579,9 +1571,66 @@ document.addEventListener('DOMContentLoaded', () => {
             saveCustomUnits();
             unitesModal?.classList.remove('active');
         });
+
+        // NEW: Event listeners for custom target inputs
+        document.getElementById('custom-target-e2-input')?.addEventListener('change', handleCustomTargetChange);
+        document.getElementById('custom-target-e3-input')?.addEventListener('change', handleCustomTargetChange);
     }
     
+    /**
+     * ===================================================================
+     * NEW: Custom Target Handler
+     * ===================================================================
+     */
+    function handleCustomTargetChange(event) {
+        const targetValue = parseFloat(event.target.value);
+        const etapeKey = event.target.dataset.etape;
+
+        const row = document.getElementById(`custom-row-${etapeKey}`);
+        const avgCell = document.getElementById(`custom-avg-${etapeKey}`);
+        const probCell = document.getElementById(`custom-prob-${etapeKey}`);
+        const riskCell = document.getElementById(`custom-risk-${etapeKey}`);
+
+        if (isNaN(targetValue) || targetValue < 0 || targetValue > 105) {
+            row.className = "";
+            avgCell.innerHTML = "--";
+            probCell.innerHTML = "--";
+            riskCell.innerHTML = "--";
+            return; 
+        }
+
+        const { allTermAverages, predictedE3SMean, predictedE3SSigma } = cachedAnalysis;
+        
+        // Rerun the path analysis for just this one target
+        const results = calculatePathAnalysis(etapeKey, allTermAverages, predictedE3SMean, predictedE3SSigma, [targetValue]);
+        const data = results[targetValue];
+        
+        if (!data) return; // Should not happen
+
+        const { requiredAvg, prob } = data;
+
+        // --- Re-create the display logic from the main renderer ---
+        let probClass = 'prob-low';
+        let effort = 'Effort Extrême (Statistiquement Improbable)';
+        if (prob >= 80) { probClass = 'prob-high'; effort = 'Maintenir Consistance (Très Faisable)'; }
+        else if (prob >= 50) { probClass = 'prob-medium'; effort = 'Effort Modéré/Ciblé (Faisable)'; }
+        else if (prob >= 20) { probClass = 'prob-low'; effort = 'Effort Intégral (Difficile)'; }
+        else if (prob < 5) { probClass = 'prob-low'; effort = 'Statistiquement Très Improbable'; }
+
+        let requiredAvgDisplay = requiredAvg !== null ? (requiredAvg > 100 ? 'IMPOSSIBLE (100+)' : `${requiredAvg.toFixed(2)}%`) : '--';
+        if (requiredAvg !== null && requiredAvg < 60) requiredAvgDisplay = `<span class="text-green-600">FAIBLE (${requiredAvg.toFixed(2)}%)</span>`;
+        else if (requiredAvg !== null && requiredAvg > 100) requiredAvgDisplay = `<span class="text-red-600">IMPOSSIBLE (100+%)</span>`;
+        
+        // --- Render the new row ---
+        row.className = probClass;
+        avgCell.innerHTML = requiredAvgDisplay;
+        probCell.innerHTML = `${prob.toFixed(1)}%`;
+        riskCell.textContent = effort;
+    }
+
+    
     function populateUnitesModal() {
+        // [This section is IDENTICAL to V8]
         const unitesListEl = document.getElementById('unites-list');
         if (!unitesListEl) return;
         unitesListEl.innerHTML = '';
