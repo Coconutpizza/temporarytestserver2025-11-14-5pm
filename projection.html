@@ -894,8 +894,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * ===================================================================
-     * NEW: AI DISCOVERY ENGINE (V9 - Clarity Engine)
-     * This version adds the average to the insight to resolve user confusion.
+     * NEW: AI DISCOVERY ENGINE (V10 - Specificity & Advice Engine)
+     * This version adds subject name specificity and actionable advice.
      * ===================================================================
      */
     function generateAndRenderInsights(analysis) {
@@ -936,18 +936,25 @@ document.addEventListener('DOMContentLoaded', () => {
             goodModels.slice(0, 3).forEach(m => {
                 let text = '';
                 let riskClass = 'insight-good';
-                // NEW: Get the average for this data slice
                 const avg = m.data.grades.reduce((a, b) => a + b, 0) / m.data.grades.length;
                 
-                // NEW: Formats name like "Tendance (Temps) en Chimie"
+                // MODIFICATION: Format name with specific subjects
                 const [category, type] = m.name.split(' (');
                 const modelType = type.replace(')', '');
-                const name = (category === 'Global') ? `${modelType}` : `${modelType} en ${category}`;
+                let name = '';
+
+                if (category === 'Global') {
+                    name = `${modelType} Globale`;
+                } else if (subjectGroups[category]) { // It's a group like STEM
+                    const subjectNames = m.data.codes.map(c => subjectList[c] || c).join(', ');
+                    name = `${modelType} en ${category} (${subjectNames})`; // Ex: "Tendance en STEM (Math SN, Physique)"
+                } else { // It's an individual subject
+                    name = `${modelType} en ${category}`; // Ex: "Tendance en Physique"
+                }
 
                 if (m.model.slope > 0.1) {
                     text = `**${name} (Moy: ${avg.toFixed(0)}%)**: Vous avez une **tendance positive claire**. (Confiance: ${(m.model.r2 * 100).toFixed(0)}%)`;
                 } else if (m.model.slope < -0.1) {
-                    // This is the fix for the user's "97% and negative" confusion
                     text = `**${name} (Moy: ${avg.toFixed(0)}%)**: Tendance **négative**. Vos notes baissent, même si votre moyenne est élevée. (Confiance: ${(m.model.r2 * 100).toFixed(0)}%)`;
                     riskClass = ''; // warning
                 } else {
@@ -955,6 +962,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 insights.push({ text: text, type: `${m.type} ${riskClass}` });
             });
+            
+            // --- NEW: Actionable Advice Section (Trend-Based) ---
+            const negativeTrends = goodModels.filter(m => m.model.slope < -0.1);
+            if (negativeTrends.length > 0) {
+                const worstTrend = negativeTrends.sort((a, b) => a.model.slope - b.model.slope)[0];
+                const [category, ] = worstTrend.name.split(' (');
+                insights.push({ 
+                    text: `<b>Action Requise:</b> Votre tendance la plus négative est en <b>${category}</b>. C'est votre priorité #1. Même si la moyenne est haute, la tendance à la baisse est un signal de risque.`,
+                    type: '' // warning
+                });
+            }
+            
+            const positiveTrends = goodModels.filter(m => m.model.slope > 0.1);
+            if (positiveTrends.length > 0 && negativeTrends.length === 0) { // Only if no negative trends
+                const bestTrend = positiveTrends.sort((a, b) => b.model.slope - a.model.slope)[0];
+                const [category, ] = bestTrend.name.split(' (');
+                insights.push({ 
+                    text: `<b>Bon Travail:</b> Votre élan est excellent, surtout en <b>${category}</b>. Maintenez cette méthode de travail, elle fonctionne.`,
+                    type: 'insight-good'
+                });
+            }
+            
+            if (positiveTrends.length === 0 && negativeTrends.length === 0) { // All stable
+                 insights.push({ 
+                    text: `<b>Profil Stable:</b> Vos schémas sont très constants, sans hausse ni baisse majeure. C'est un profil mature. Le focus est de maintenir cette constance.`,
+                    type: 'insight-info'
+                });
+            }
+            // --- End New Advice Section ---
 
         } else {
             // --- PROFILE: ERRATIC ---
@@ -965,6 +1001,11 @@ document.addEventListener('DOMContentLoaded', () => {
             insights.push({
                 text: `Cette imprévisibilité est le principal facteur de votre B-Risk. Votre Volatilité (StdDev) est de **${globalStdDev.toFixed(1)}** (Idéal: < 10). La priorité #1 est la constance.`,
                 type: '' // warning
+            });
+            // NEW: Advice for Erratic profile
+            insights.push({ 
+                text: "<b>Conseil:</b> Votre focus ne doit pas être sur une matière, mais sur la <b>stabilité</b>. Visez à ce que vos 5 prochains devoirs aient un écart max de 10-15 points (ex: 80% et 95%) au lieu de 40 points (ex: 60% et 100%).", 
+                type: 'insight-focus' 
             });
         }
 
@@ -1232,11 +1273,12 @@ document.addEventListener('DOMContentLoaded', () => {
         let allSubjectStats = {}; 
         let allSubjectOverallStats = {}; 
         
+        // MODIFICATION: Utilisation de Set() pour suivre les codes uniques
         let aiDataStore = {
-            'Global': { grades: [], pondérations: [], compWeights: [], codes: [] }
+            'Global': { grades: [], pondérations: [], compWeights: [], codes: new Set() }
         };
         Object.keys(subjectGroups).forEach(groupName => {
-            aiDataStore[groupName] = { grades: [], pondérations: [], compWeights: [], codes: [] };
+            aiDataStore[groupName] = { grades: [], pondérations: [], compWeights: [], codes: new Set() };
         });
 
         // 1. Calculate Averages and Stats per Subject/Etape
@@ -1250,6 +1292,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const { subjectAverage, allGrades, allPondérations, allCompWeights, overallConsistency, stdDev, competencyAverages } = 
                     calculateSubjectAverageAndStats(subject, etape);
 
+                // MODIFICATION: Ajout du code au Set()
+                aiDataStore['Global'].codes.add(codePrefix);
                 aiDataStore['Global'].grades.push(...allGrades);
                 aiDataStore['Global'].pondérations.push(...allPondérations); 
                 aiDataStore['Global'].compWeights.push(...allCompWeights);
@@ -1259,6 +1303,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         aiDataStore[groupName].grades.push(...allGrades);
                         aiDataStore[groupName].pondérations.push(...allPondérations); 
                         aiDataStore[groupName].compWeights.push(...allCompWeights);
+                        aiDataStore[groupName].codes.add(codePrefix); // MODIFICATION: Ajout du code au Set() du groupe
                         break; 
                     }
                 }
@@ -1288,7 +1333,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (totalNumGrades > 0) {
-                 aiDataStore[subjectList[code] || code] = { grades: grades, pondérations: pondérations, compWeights: compWeights, codes: [code] };
+                 // MODIFICATION: Utilisation de Set() pour la cohérence
+                 aiDataStore[subjectList[code] || code] = { grades: grades, pondérations: pondérations, compWeights: compWeights, codes: new Set([code]) };
             }
 
             const overallStdDev = calculateStdDev(grades);
@@ -1329,23 +1375,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = aiDataStore[categoryName];
             if (data.grades.length < 5) continue; 
 
+            // MODIFICATION: Conversion du Set() en Array pour le stockage
+            const codesArray = Array.from(data.codes);
+
             aiModels.push({
                 name: `${categoryName} (Tendance)`,
                 type: 'insight-trend',
                 model: linearRegression(data.grades.map((g, i) => i), data.grades),
-                data: data 
+                data: { ...data, codes: codesArray } // Passe la liste des codes
             });
             aiModels.push({
                 name: `${categoryName} (Focus)`,
                 type: 'insight-focus',
                 model: linearRegression(data.pondérations, data.grades),
-                data: data 
+                data: { ...data, codes: codesArray } // Passe la liste des codes
             });
             aiModels.push({
                 name: `${categoryName} (Priorité)`,
                 type: 'insight-priority',
                 model: linearRegression(data.compWeights, data.grades),
-                data: data 
+                data: { ...data, codes: codesArray } // Passe la liste des codes
             });
         }
         
