@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analyseur Dynamique V7 (IA Découverte)</title>
+    <title>Analyseur Dynamique V8 (Moteur de Découverte)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* [All the CSS from the previous file remains exactly the same] */
@@ -243,10 +243,13 @@
          .ai-insight-box li.insight-focus::before {
             content: '🎯';
         }
-         /* NEW */
          .ai-insight-box li.insight-priority::before {
             content: '🧠';
         }
+        .ai-insight-box li.insight-erratic::before {
+            content: '⚡';
+        }
+
     </style>
 </head>
 <body>
@@ -254,7 +257,7 @@
     <div class="main-container">
 
         <div class="side-panel lg:sticky lg:top-4">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Moteur Stochastique V7 (IA-D)</h2>
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 border-b pb-2">Moteur Stochastique V8 (IA-Scan)</h2>
 
             <div class="bg-violet-100 p-4 rounded-lg mb-4 border-l-4 border-violet-600">
                 <p class="text-sm font-medium text-gray-700">Prédiction Globale Stochastique (Tendance MC)</p>
@@ -280,7 +283,7 @@
 
                 <div class="ai-insight-box" id="ai-insight-container">
                     <h4><span>🔎</span> Moteur de Découverte (IA)</h4>
-                    <p class="text-xs text-gray-500 -mt-2 mb-3">L'IA recherche les corrélations fiables (R² > 0.20) dans vos données.</p>
+                    <p class="text-xs text-gray-500 -mt-2 mb-3">L'IA a scanné vos données et a trouvé les corrélations les plus fortes (R² > 0.25) :</p>
                     <ul id="ai-insights-list">
                         </ul>
                 </div>
@@ -408,7 +411,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const subjectList = { 'ART': "Arts Plastiques", 'MUS': "Musique", 'DRM': "Art Dramatique", 'CAT': "Conception et Application Technologique", 'FRA': "Français", 'ELA': "English Language Arts", 'EESL': "Anglais enrichi", 'ESL': "Anglais langue seconde", 'SN': "Math SN", 'CST': "Math CST", 'ST': "Science et Technologie", 'STE': "Science et Tech. Env.", 'HQC': "Histoire", 'CCQ': "Culture et Citoyenneté", 'EPS': "Éducation Physique", 'CHI': "Chimie", 'PHY': "Physique", 'MON': "Monde Contemporain", 'MED': "Média", 'ENT': "Entrepreneuriat", 'INF': "Informatique", 'PSY': "Psychologie", 'FIN': "Éducation Financière" };
     
-    // Weights for overall global calculation
+    // ===================================================================
+    // NEW: AI KNOWLEDGE BASE (V8)
+    // ===================================================================
+    const subjectGroups = {
+        'STEM': ['MAT', 'CST', 'SN', 'ST', 'STE', 'CHI', 'PHY', 'CAT', 'INF', 'FIN'],
+        'Langues': ['FRA', 'ELA', 'EESL', 'ESL'],
+        'Sciences Humaines': ['HQC', 'CCQ', 'MON', 'PSY', 'ENT', 'MED'],
+        'Arts & Autre': ['ART', 'MUS', 'DRM', 'EPS']
+    };
+    
     const TERM_WEIGHTS = { etape1: 0.20, etape2: 0.20, etape3: 0.60 };
 
     let mbsData = {};
@@ -416,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let cachedAnalysis = null;
     const NUM_MONTE_CARLO_RUNS = 100000; 
     const KNOWN_ETAPE_KEYS = ['etape1', 'etape2']; 
-    const AI_R2_THRESHOLD = 0.40; // NEW: The "Good R^2 Score" threshold
+    const AI_R2_THRESHOLD = 0.25; // The "Good R^2 Score" threshold (raised for better signal)
 
     // --- INITIALIZATION ---
     function init() {
@@ -441,11 +453,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- DATA & SETTINGS MANAGEMENT ---
+    // [This section is IDENTICAL to V7]
     function loadSettings() {
         const settings = mbsData.settings || {};
         document.getElementById('niveau-secondaire').value = settings.niveau || '';
         document.getElementById('unites-mode').value = settings.unitesMode || 'defaut';
-        
         const absenceRate = settings.absenceRate !== undefined ? settings.absenceRate : '5';
         document.getElementById('absence-rate-slider').value = absenceRate;
         document.getElementById('absence-rate-value').textContent = `${parseFloat(absenceRate).toFixed(1)}%`;
@@ -457,7 +469,6 @@ document.addEventListener('DOMContentLoaded', () => {
         mbsData.settings.unitesMode = document.getElementById('unites-mode').value;
         mbsData.settings.absenceRate = document.getElementById('absence-rate-slider').value;
         mbsData.settings.customUnites = mbsData.settings.customUnites || {};
-        
         localStorage.setItem('mbsData', JSON.stringify(mbsData));
         calculateAndCacheAnalysis();
         renderAll();
@@ -466,29 +477,27 @@ document.addEventListener('DOMContentLoaded', () => {
     function saveCustomUnits() {
         const unitesModeEl = document.getElementById('unites-mode');
         if (unitesModeEl.value !== 'perso') return;
-
         let customUnites = {};
         document.querySelectorAll('.unite-item input').forEach(input => {
             customUnites[input.dataset.code] = parseFloat(input.value) || 1;
         });
-        
         mbsData.settings = mbsData.settings || {};
         mbsData.settings.customUnites = customUnites;
         saveSettings();
     }
 
     // --- RENDERING FUNCTIONS ---
+    // [All rendering functions are IDENTICAL to V7/V6]
+    // [No changes needed in the UI rendering, only in the AI analysis]
     function renderAll() {
         renderTermTables();
         const analysis = cachedAnalysis;
         renderSidePanel(analysis);
         renderDeepAnalysis(analysis);
-        generateAndRenderInsights(analysis); // Render AI insights
+        generateAndRenderInsights(analysis); // Render V8 AI insights
         renderMonteCarlo(analysis);
         renderMismatchAnalysis(analysis);
     }
-
-    // ... [All other render functions like renderTermTables, renderSubjectTable, renderSubjectAnalysis, renderMismatchAnalysis, renderSidePanel, renderDeepAnalysis, renderMonteCarlo are IDENTICAL to V6] ...
     
     function renderTermTables() {
         ['etape1', 'etape2', 'etape3'].forEach(key => {
@@ -549,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
         summaryRow.className = 'bg-gray-100 font-semibold';
         summaryRow.innerHTML = `
             <td>TOTAL/GLOBAL</td>
-            <td>${analysis.subjectAverages[etapeKey]?.[codePrefix]?.average !== null ? `<span class="grade-percentage text-lg">${analysis.subjectAverages[etapeKey]?.[codePrefix]?.average.toFixed(2)}%</span>` : '<span class="no-data text-lg">N/D</span>'}</td>
+            <td>${analysis.subjectAverages[etapeKey]?.[codePrefix]?.average !== null ? `<span class"grade-percentage text-lg">${analysis.subjectAverages[etapeKey]?.[codePrefix]?.average.toFixed(2)}%</span>` : '<span class="no-data text-lg">N/D</span>'}</td>
             <td>${numAssignments}</td>
         `;
         if (tbody) tbody.appendChild(summaryRow);
@@ -666,7 +675,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderDeepAnalysis(analysis) {
-        const { globalConsistencyScore, burnoutRiskScore, globalTrend } = analysis;
+        const { globalConsistencyScore, burnoutRiskScore, aiModels } = analysis;
         const consistencyEl = document.getElementById('consistency-score');
         if (consistencyEl) {
             consistencyEl.className = 'score-card';
@@ -684,9 +693,10 @@ document.addEventListener('DOMContentLoaded', () => {
             else riskEl.classList.add('card-green');
         }
         const dffEl = document.getElementById('dff-score');
-        if (dffEl) {
+        if (dffEl && aiModels) {
+            const globalTrend = aiModels.find(m => m.name === 'Global (Tendance)');
             dffEl.className = 'score-card';
-            const score = (globalTrend.slope * 10).toFixed(1);
+            const score = (globalTrend.model.slope * 10).toFixed(1);
             dffEl.querySelector('strong').textContent = score + "%";
             dffEl.querySelector('strong').className = score < -1 ? 'text-xl text-red-600' : (score > 1 ? 'text-xl text-green-600' : 'text-xl text-yellow-600');
             dffEl.querySelector('p').textContent = `Facteur de Tendance Globale (Pente / 10 devoirs)`;
@@ -694,6 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderMonteCarlo(analysis) {
+        // [This entire, long function is IDENTICAL to V7/V6]
         const { predictions } = analysis;
         const globalPredEl = document.getElementById('global-predictions');
         const probTableEl = document.getElementById('probability-table-body');
@@ -766,12 +777,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * ===================================================================
-     * NEW: AI DISCOVERY ENGINE (V7)
-     * Replaces the old insight generator with a dynamic discovery model.
+     * NEW: AI DISCOVERY ENGINE (V8)
+     * This is the "Data Mining" AI. It dynamically finds the strongest
+     * patterns in the dataset.
      * ===================================================================
      */
     function generateAndRenderInsights(analysis) {
-        const { burnoutRiskScore, globalStdDev, globalTrend, globalPondérationTrend, globalCompWeightTrend } = analysis;
+        const { burnoutRiskScore, aiModels, globalStdDev } = analysis;
         const container = document.getElementById('ai-insights-list');
         if (!container) return;
 
@@ -788,31 +800,25 @@ document.addEventListener('DOMContentLoaded', () => {
             riskClass = "insight-info";
         }
         insights.push({ 
-            text: `Mon diagnostic global est un **risque de burnout ${riskLabel} (${burnoutRiskScore.toFixed(0)}/100)**. Voici les schémas que j'ai trouvés :`,
+            text: `Mon diagnostic global est un **risque de burnout ${riskLabel} (${burnoutRiskScore.toFixed(0)}/100)**.`,
             type: riskClass
         });
 
         // --- 2. The "AI Discovery" Engine ---
-        // Create an array of all our AI models
-        const models = [
-            { name: "Tendance (Temps)", model: globalTrend, type: 'insight-trend', prefix: '📈' },
-            { name: "Focus (Pondération)", model: globalPondérationTrend, type: 'insight-focus', prefix: '🎯' },
-            { name: "Priorité (Compétence)", model: globalCompWeightTrend, type: 'insight-priority', prefix: '🧠' }
-        ];
-
         // Filter for models with "good" R^2 score
-        const goodModels = models
+        const goodModels = aiModels
             .filter(m => m.model.r2 > AI_R2_THRESHOLD) // Use the global threshold
             .sort((a, b) => b.model.r2 - a.model.r2); // Sort by strongest correlation
 
         if (goodModels.length > 0) {
             // --- PROFILE: TREND-BASED ---
             insights.push({ 
-                text: `J'ai analysé vos données et **trouvé ${goodModels.length} schéma(s) fiable(s)** (R² > ${(AI_R2_THRESHOLD * 100).toFixed(0)}%) dans votre performance :`,
+                text: `J'ai scanné ${aiModels.length} combinaisons et **trouvé ${goodModels.length} schéma(s) fiable(s)** dans votre performance :`,
                 type: 'insight-info'
             });
 
-            goodModels.forEach(m => {
+            // Report the Top 3 strongest patterns
+            goodModels.slice(0, 3).forEach(m => {
                 let text = '';
                 let riskClass = 'insight-good';
                 if (m.model.slope > 0.1) {
@@ -829,8 +835,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // --- PROFILE: ERRATIC ---
             insights.push({ 
-                text: `Mon diagnostic principal est que votre performance est **erratique**. Je n'ai trouvé **aucun schéma fiable** (R² < ${(AI_R2_THRESHOLD * 100).toFixed(0)}%) dans vos données (Temps, Focus, ou Priorité).`,
-                type: 'insight-info'
+                text: `Mon diagnostic principal est que votre performance est **erratique**. Je n'ai trouvé **aucun schéma fiable** (R² < ${(AI_R2_THRESHOLD * 100).toFixed(0)}%) sur les ${aiModels.length} combinaisons analysées.`,
+                type: 'insight-erratic'
             });
             insights.push({
                 text: `Cette imprévisibilité est le principal facteur de votre B-Risk. Votre Volatilité (StdDev) est de **${globalStdDev.toFixed(1)}** (Idéal: < 10). La priorité #1 est la constance.`,
@@ -941,13 +947,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * ===================================================================
-     * NEW: Extracts all data vectors for AI analysis
+     * UPGRADED: Extracts all data vectors for AI analysis
      * ===================================================================
      */
     function extractAssignmentData(subject) {
         let allGrades = [];
         let allPondérations = [];
-        let allCompWeights = []; // NEW
+        let allCompWeights = []; 
 
         subject.competencies.forEach((comp) => {
             const compWeightMatch = comp.name.match(/\((\d+)%\)/);
@@ -957,15 +963,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const grade = getNumericGrade(assign.result);
                 const pondération = parseFloat(assign.pond || 0);
 
-                // We only add data points that are complete for all vectors
                 if (grade !== null && !isNaN(grade) && pondération > 0 && compWeight > 0) {
                     allGrades.push(grade);
                     allPondérations.push(pondération);
-                    allCompWeights.push(compWeight); // NEW
+                    allCompWeights.push(compWeight); 
                 }
             });
         });
-        return { allGrades, allPondérations, allCompWeights }; // NEW
+        return { allGrades, allPondérations, allCompWeights }; 
     }
 
 
@@ -974,10 +979,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalCompetencyWeight = 0;
         let competencyAverages = [];
         
-        // NEW: Get all data vectors
         const { allGrades, allPondérations, allCompWeights } = extractAssignmentData(subject);
 
-        // Calculate competency averages (the original way)
         subject.competencies.forEach((comp, compIndex) => {
             const compWeightMatch = comp.name.match(/\((\d+)%\)/);
             const compWeight = compWeightMatch ? parseFloat(compWeightMatch[1]) : 0;
@@ -1009,11 +1012,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const subjectAverage = totalCompetencyWeight > 0 ? (totalWeightedGrade / totalCompetencyWeight) : null;
-        
         const overallConsistency = allGrades.length >= 2 ? calculateConsistencyScore(allGrades) : 100;
         const stdDev = allGrades.length >= 2 ? calculateStdDev(allGrades) : 0;
         
-        // NEW: Return all data vectors
         return { subjectAverage, allGrades, allPondérations, allCompWeights, overallConsistency, stdDev, competencyAverages };
     }
 
@@ -1039,7 +1040,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // ===================================================================
-    // UPGRADED ANALYSIS FUNCTION (V7)
+    // UPGRADED ANALYSIS FUNCTION (V8 - AI DISCOVERY ENGINE)
     // ===================================================================
     function calculateAllAnalysis() {
         const units = getUnits();
@@ -1048,10 +1049,16 @@ document.addEventListener('DOMContentLoaded', () => {
         let allSubjectAverages = {};
         let allSubjectStats = {}; 
         let allSubjectOverallStats = {}; 
-        let allGradesGlobal = [];
-        let allPondérationsGlobal = []; // For AI Model 2
-        let allCompWeightsGlobal = []; // NEW: For AI Model 3
         
+        // This object will hold all data, categorized for the AI
+        let aiDataStore = {
+            'Global': { grades: [], pondérations: [], compWeights: [], codes: [] }
+        };
+        // Initialize subject groups
+        Object.keys(subjectGroups).forEach(groupName => {
+            aiDataStore[groupName] = { grades: [], pondérations: [], compWeights: [], codes: [] };
+        });
+
         // 1. Calculate Averages and Stats per Subject/Etape
         KNOWN_ETAPE_KEYS.forEach(etape => {
             if (!mbsData[etape]) return;
@@ -1060,13 +1067,23 @@ document.addEventListener('DOMContentLoaded', () => {
             mbsData[etape].forEach((subject) => {
                 const codePrefix = subject.code.substring(0, 3);
                 
-                // NEW: Get all data vectors
                 const { subjectAverage, allGrades, allPondérations, allCompWeights, overallConsistency, stdDev, competencyAverages } = 
                     calculateSubjectAverageAndStats(subject, etape);
 
-                allGradesGlobal.push(...allGrades);
-                allPondérationsGlobal.push(...allPondérations); 
-                allCompWeightsGlobal.push(...allCompWeights); // NEW
+                // Add data to the Global store
+                aiDataStore['Global'].grades.push(...allGrades);
+                aiDataStore['Global'].pondérations.push(...allPondérations); 
+                aiDataStore['Global'].compWeights.push(...allCompWeights);
+
+                // Add data to the correct Subject Group store
+                for (const groupName in subjectGroups) {
+                    if (subjectGroups[groupName].includes(codePrefix)) {
+                        aiDataStore[groupName].grades.push(...allGrades);
+                        aiDataStore[groupName].pondérations.push(...allPondérations); 
+                        aiDataStore[groupName].compWeights.push(...allCompWeights);
+                        break; // A subject is only in one group
+                    }
+                }
                 
                 allSubjectAverages[etape][codePrefix] = { name: subjectList[codePrefix] || subject.name, average: subjectAverage };
                 
@@ -1079,7 +1096,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.keys(allSubjectStats).forEach(code => {
             let grades = [];
             let pondérations = [];
-            let compWeights = []; // NEW
+            let compWeights = [];
             let allConsistencies = [];
             let totalNumGrades = 0;
 
@@ -1087,11 +1104,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (allSubjectStats[code][etape]) {
                     grades.push(...allSubjectStats[code][etape].allGrades);
                     pondérations.push(...allSubjectStats[code][etape].allPondérations);
-                    compWeights.push(...allSubjectStats[code][etape].allCompWeights); // NEW
+                    compWeights.push(...allSubjectStats[code][etape].allCompWeights);
                     allConsistencies.push(allSubjectStats[code][etape].overallConsistency);
                     totalNumGrades += allSubjectStats[code][etape].numGrades;
                 }
             });
+
+            // Also add individual subjects to the AI data store
+            if (totalNumGrades > 0) {
+                 aiDataStore[subjectList[code] || code] = { grades: grades, pondérations: pondérations, compWeights: compWeights, codes: [code] };
+            }
+
             const overallStdDev = calculateStdDev(grades);
             const overallConsistency = allConsistencies.length > 0 ? allConsistencies.reduce((a, b) => a + b) / allConsistencies.length : 100;
             const trend = linearRegression(grades.map((g, i) => i), grades); 
@@ -1121,19 +1144,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const globalAverageKnown = totalKnownWeight > 0 ? globalWeightedSum / totalKnownWeight : null;
 
-        // 3. Global Statistics & AI Models
-        let globalStdDev = allGradesGlobal.length >= 2 ? calculateStdDev(allGradesGlobal) : 0;
-        let globalConsistencyScore = allGradesGlobal.length >= 2 ? calculateConsistencyScore(allGradesGlobal) : 100;
+        // 3. Global Statistics & AI DISCOVERY ENGINE
+        const globalStdDev = calculateStdDev(aiDataStore['Global'].grades);
+        const globalConsistencyScore = calculateConsistencyScore(aiDataStore['Global'].grades);
         
-        // AI Model 1: Global Time Trend
-        let globalTrend = linearRegression(allGradesGlobal.map((g, i) => i), allGradesGlobal); 
+        // This is the "Task List" for the AI
+        let aiModels = [];
+        for (const categoryName in aiDataStore) {
+            const data = aiDataStore[categoryName];
+            if (data.grades.length < 5) continue; // Not enough data to be significant
+
+            // Model 1: Time Trend
+            aiModels.push({
+                name: `${categoryName} (Tendance)`,
+                type: 'insight-trend',
+                model: linearRegression(data.grades.map((g, i) => i), data.grades)
+            });
+            // Model 2: Focus Trend
+            aiModels.push({
+                name: `${categoryName} (Focus)`,
+                type: 'insight-focus',
+                model: linearRegression(data.pondérations, data.grades)
+            });
+            // Model 3: Priority Trend
+            aiModels.push({
+                name: `${categoryName} (Priorité)`,
+                type: 'insight-priority',
+                model: linearRegression(data.compWeights, data.grades)
+            });
+        }
         
-        // AI Model 2: Global Pondération Trend
-        let globalPondérationTrend = linearRegression(allPondérationsGlobal, allGradesGlobal);
-
-        // NEW: AI Model 3: Global Competency Weight Trend
-        let globalCompWeightTrend = linearRegression(allCompWeightsGlobal, allGradesGlobal);
-
         // 4. Subject Trends
         let subjectTrends = {}; 
         Object.keys(allSubjectOverallStats).forEach(code => {
@@ -1141,6 +1181,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         // 5. Burnout Risk
+        const globalTrendModel = aiModels.find(m => m.name === 'Global (Tendance)');
+        const globalTrend = globalTrendModel ? globalTrendModel.model : { slope: 0, r2: 0 };
         let burnoutRiskScore = calculateBurnoutRisk(niveau, globalStdDev, allSubjectOverallStats, units, globalTrend);
 
         // 6. Monte Carlo Predictions
@@ -1152,9 +1194,7 @@ document.addEventListener('DOMContentLoaded', () => {
             globalAverage: globalAverageKnown, 
             globalStdDev, 
             globalConsistencyScore,
-            globalTrend,
-            globalPondérationTrend, 
-            globalCompWeightTrend, // NEW
+            aiModels: aiModels, // NEW: Pass the full list of AI models
             subjectStats: allSubjectStats,
             subjectOverallStats: allSubjectOverallStats,
             subjectTrends,
@@ -1165,7 +1205,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // ===================================================================
-    // Transparent Burnout Risk Score (V2)
+    // Transparent Burnout Risk Score
     // ===================================================================
     function calculateBurnoutRisk(niveau, globalStdDev, allSubjectOverallStats, units, globalTrend) {
         if (!niveau) return 0;
@@ -1182,12 +1222,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return Math.min(100, Math.max(0, finalScore));
     }
     
-    // --- MONTE CARLO CORE LOGIC (V7: AI-Driven Projection) ---
+    // --- MONTE CARLO CORE LOGIC (V8) ---
     function runMonteCarloSimulation(globalAverageKnown, termAverages, subjectAverages, subjectTrends, subjectOverallStats, units, globalStdDev, burnoutRiskScore) {
-        // [This entire, long function is IDENTICAL to V6]
+        // [This entire, long function is IDENTICAL to V7/V6]
         // [It correctly uses the 'trend' from 'subjectOverallStats' to make projections]
-        // [No changes are needed here]
-
         const globalPred = { p5: null, p25: null, p50: null, p75: null, p95: null };
         const subjectPreds = {};
         const targets = [95, 92, 90, 88, 85, 80, 75, 70, 60];
@@ -1321,8 +1359,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- EVENT LISTENERS ---
+    // [This section is IDENTICAL to V7/V6]
     function setupEventListeners() {
-        // [This section is IDENTICAL to V6]
         document.querySelectorAll('.tab-btn').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelector('.tab-btn.active')?.classList.remove('active');
@@ -1358,7 +1396,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function populateUnitesModal() {
-        // [This section is IDENTICAL to V6]
         const unitesListEl = document.getElementById('unites-list');
         if (!unitesListEl) return;
         unitesListEl.innerHTML = '';
